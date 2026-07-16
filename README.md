@@ -73,7 +73,7 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 | `auditboard-dev-env/.envrc` (tail block) | `DATABASE_URL`, `REDIS_URL`, `DOCKER_REDIS_URL`, `PERMISSIONS_DATABASE_URL`, `CONDUCTOR_SERVER_URL`, `AB_MLSERVICE_LOCAL_SERVICE_PORT`, `CASCADE_JWT_SECRET` | no (gitignored/generated) — **re-run `onboard.sh` after `bin/generate-config`** |
 | `cascade/docker-compose.override.yml` | redis + debugpy remaps | no (`.git/info/exclude`) |
 | `auditboard-dev-env/machine-learning/docker-compose.override.yml` | ML local → 8004 | ⚠ tracked file, shows as locally modified — re-apply after pulls (onboard.sh does) |
-| `cascade/.env` (tail block) | `JWT_AUTH_SHARED_SECRET`, `JWT_AUTH_ISSUER`, `AB_DOMAINS`, `AB_LOGIN_URL`, `LAUNCH_DARKLY_SDK_KEY`, `LAUNCH_DARKLY_CLIENT_ID` (prompted by onboard.sh) | no (gitignored) |
+| `cascade/.env` (tail block) | `JWT_AUTH_SHARED_SECRET`, `JWT_AUTH_ISSUER`, `AB_DOMAINS`, `AB_LOGIN_URL`, `LAUNCH_DARKLY_SDK_KEY`, `LAUNCH_DARKLY_CLIENT_ID` (prompted by onboard.sh, get from 1Password > QE Team Vault > Cascade base env file) | no (gitignored) |
 | `FLEETCOM/local.conf` | per-machine repo paths (from onboard.sh prompts) | no (gitignored) |
 | `FLEETCOM/devenv.override.yml` | Conductor → 18080; integrations-extract `NODE_OPTIONS=--max-old-space-size=8192` | yes (this repo) |
 | Docker Desktop `settings-store.json` | Memory ≥ 12GB, disk ≥ 120GB (onboard.sh offers to apply; needs Docker restart) | system config |
@@ -120,9 +120,10 @@ belongs in auditboard-backend: Hapi `state.failAction: 'log'` — mention it in
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404
   after SSO**: `LAUNCH_DARKLY_SDK_KEY` / `LAUNCH_DARKLY_CLIENT_ID` are missing
-  from `cascade/.env` (get them from 1Password, then recreate the web
-  containers and restart Parcel — or just re-run `onboard.sh`, which prompts
-  for them). The SSO/JWT auth itself works without them.
+  from `cascade/.env` (get them from 1Password > QE Team Vault > Cascade base
+  env file, then recreate the web containers and restart Parcel — or just
+  re-run `onboard.sh`, which prompts for them). The SSO/JWT auth itself works
+  without them.
 
 - Cascade Playwright E2E starts a wiremock on host 9001 → collides with the AB
   API. Only matters when running Cascade E2E; stop the AB API first or remap

@@ -172,7 +172,7 @@ done
 # dotenv semantics: last occurrence wins, so appending overrides empty values.
 if ! { grep -qE '^LAUNCH_DARKLY_SDK_KEY=.+' "$CASCADE/.env" && grep -qE '^LAUNCH_DARKLY_CLIENT_ID=.+' "$CASCADE/.env"; }; then
 	if [ -t 0 ]; then
-		say "LaunchDarkly keys for cascade — find them in 1Password (stored only in cascade/.env; Enter to skip)"
+		say "LaunchDarkly keys for cascade — 1Password > QE Team Vault > Cascade base env file (stored only in cascade/.env; Enter to skip)"
 		read -r -p "[onboard]   LAUNCH_DARKLY_SDK_KEY (sdk-...): " LD_SDK || true
 		read -r -p "[onboard]   LAUNCH_DARKLY_CLIENT_ID (hex): " LD_CID || true
 		if [ -n "${LD_SDK:-}" ] && [ -n "${LD_CID:-}" ]; then
