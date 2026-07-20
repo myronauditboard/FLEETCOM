@@ -23,6 +23,7 @@ change them. Defaults:
 
 ```bash
 ./onboard.sh     # one-time, idempotent — applies all port/SSO config
+                 # first time? seed the AB database too — see "Database seeding"
 ./start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
 ./doctor.sh      # port + health report
 ./restart-all.sh # full bounce of everything, Midship included
@@ -34,6 +35,24 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 **https://localhost:9002/sh/auditboardanalytics/auth** → should land on
 **http://127.0.0.1:8088** authenticated. Use **Chrome** — Safari refuses the
 `secure` cookie Cascade sets on plain-http 127.0.0.1.
+
+## Database seeding (AuditBoard)
+
+The AB demo data comes from a **SQL data dump imported once** — it is *not*
+part of the daily boot. Regular starts (`start-all.sh` → `bin/start-api`) only
+run migrations on top of whatever is already in the database.
+
+- Drop a dump into `auditboard-dev-env/workspace/` — a `.dump` (preferred),
+  `.sql.zip`, or `.sql`. When several exist, the alphabetically-last `.dump`
+  wins (e.g. `platform-dataset.dump`). No dump? Ask a teammate for the current
+  platform dataset — without one, `reset-db` falls back to a minimal empty seed.
+- Import it: `abc run reset-db` (from `auditboard-dev-env`). **Destructive**:
+  drops and replaces the whole `demo_data` DB, including any local AB state.
+  Seed login afterwards: `ops@soxhub.com` / `password`.
+- When to run: first-time setup, or whenever you want to refresh to the
+  canonical dataset. Everything else (Cascade's DB, Midship's DB) is separate
+  and unaffected — Cascade seeds via its own `migrate` + `bootstrap`, and SSO
+  users auto-provision on first login.
 
 ## Port map
 

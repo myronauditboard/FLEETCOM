@@ -199,4 +199,11 @@ EOF
 	say "cascade .env SSO block appended"
 fi
 
+# --- 7. AB database seed dump (informational — import is destructive) -------
+if ls "$DEVENV/workspace/"*.dump >/dev/null 2>&1 || ls "$DEVENV/workspace/"*.sql* >/dev/null 2>&1; then
+	say "AB seed dump present in auditboard-dev-env/workspace/ — import (first time or to refresh): abc run reset-db  (destructive; see README 'Database seeding')"
+else
+	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ — ask a teammate for the current platform dataset dump, drop it there, then run: abc run reset-db"
+fi
+
 say "done. Next: ./start-all.sh && ./doctor.sh — see README.md"
