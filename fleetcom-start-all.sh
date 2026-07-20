@@ -31,7 +31,8 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 		(cd "$MIDSHIP_FRONTEND_DIR" && nohup npm run dev > "$LOGS/midship-frontend.log" 2>&1 &)
 	fi
 else
-	say "midship-turbo-broccoli not found at $MIDSHIP_TURBO_BROCCOLI_DIR — skipping midship"
+	say "WARNING: midship-turbo-broccoli not found at $MIDSHIP_TURBO_BROCCOLI_DIR — SKIPPING ALL OF MIDSHIP"
+	say "WARNING: fix the MIDSHIP_*_DIR paths in local.conf (or re-run fleetcom-onboard.sh and use [p] at the clone offer)"
 fi
 
 # --- AuditBoard --------------------------------------------------------------
