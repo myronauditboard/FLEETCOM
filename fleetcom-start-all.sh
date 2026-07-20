@@ -52,8 +52,17 @@ say "AB background services (conductor + integrations-extract start separately w
 	-f "$HERE/devenv.override.yml" up -d conductor integrations-extract)
 
 if up 9001; then say "AB API already on 9001"; else
-	say "AB API -> logs/ab-api.log (migrations + api/worker/cron; takes a few minutes)"
-	(cd "$AB_BACKEND_DIR" && nohup direnv exec . bin/start-api > "$LOGS/ab-api.log" 2>&1 &)
+	# The API must run under a pty: turbo watch only kills the old api:v2
+	# process on rebuild-restart when it has a controlling terminal. A nohup
+	# launch leaks the old process -> EADDRINUSE -> v2 serves stale code.
+	if command -v tmux >/dev/null; then
+		say "AB API -> tmux session fleetcom-ab-api + logs/ab-api.log (migrations + api/worker/cron; takes a few minutes)"
+		tmux kill-session -t fleetcom-ab-api 2>/dev/null || true
+		tmux new-session -d -s fleetcom-ab-api "cd '$AB_BACKEND_DIR' && direnv exec . bin/start-api 2>&1 | tee '$LOGS/ab-api.log'"
+	else
+		say "WARNING: tmux missing — nohup fallback; edits to backend packages will NOT hot-swap api:v2 (see README). brew install tmux to fix"
+		(cd "$AB_BACKEND_DIR" && nohup direnv exec . bin/start-api > "$LOGS/ab-api.log" 2>&1 &)
+	fi
 fi
 
 # Probe Vite (9006), not Caddy (9002): the caddy docker container outlives a

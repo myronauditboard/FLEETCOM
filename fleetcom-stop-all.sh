@@ -53,6 +53,7 @@ if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	stop_containers_named hatchet-cli               # separate compose project; restarted by fleetcom-start-all.sh
 fi
 
+tmux kill-session -t fleetcom-ab-api 2>/dev/null && say "AB API tmux session closed" || true
 tmux kill-session -t fleetcom-logs 2>/dev/null && say "log panes closed" || true
 
 say "done"

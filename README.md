@@ -217,22 +217,24 @@ dedicated browser profile for AB work avoids it entirely. (Root-cause fix
 belongs in auditboard-backend: Hapi `state.failAction: 'log'` — mention it in
 #eng-dx.)
 
-### AB API v2 serves stale code after editing backend files
+### AB API v2 serves stale code after editing backend files (EADDRINUSE :9004)
 
-**Symptoms**: you edit `auditboard-backend`, the packages rebuild, but your
-changes don't take effect on `/api/v2/*` — and the alerts pane (or
-`logs/ab-api.log`) shows `Error: listen EADDRINUSE: address already in use
-:::9004`.
+**Symptoms**: you edit `auditboard-backend`, packages rebuild, but changes
+don't take effect on `/api/v2/*`; the alerts pane / `logs/ab-api.log` shows
+`Error: listen EADDRINUSE: address already in use :::9004`.
 
-**Cause**: turbo-watch's restart of the `api:v2` task doesn't kill the old
-`node dist/index.mjs` process (pnpm wrapper eats the signal). The rebuilt v2
-loses the port race and dies; the old process keeps serving pre-edit code.
-Reproducible on every dependency rebuild — upstream tooling issue, not
-FLEETCOM.
+**Cause**: turbo watch only kills the old `api:v2` process on rebuild-restart
+when the API has a **controlling terminal**. FLEETCOM originally launched it
+detached (`nohup`), so the old process leaked, the rebuilt v2 lost the port
+race and died, and the stale process kept serving pre-edit code. (Verified by
+A/B experiment: identical edits restart cleanly under a pty, leak without one.)
 
-**Fix**: bounce the API — kill whatever holds 9001 and 9003, then from
-`auditboard-backend` run `bin/start-api` again (or just re-run
-`./fleetcom-start-all.sh`, which gap-fills it). v1 hot-reload is unaffected.
+**Fix (already in place)**: `fleetcom-start-all.sh` runs the API inside a
+detached tmux session (`fleetcom-ab-api`), which provides the pty — restarts
+are clean. `tmux attach -t fleetcom-ab-api` shows the raw process if you ever
+want it. If you see this error anyway, the API was probably started by hand
+with `nohup`/backgrounding — bounce it: kill whatever holds 9001/9003 and
+re-run `./fleetcom-start-all.sh`.
 
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404
