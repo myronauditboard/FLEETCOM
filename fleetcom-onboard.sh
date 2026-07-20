@@ -32,6 +32,9 @@ if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 		say "Midship parent dir — will contain:"
 		say "    midship-turbo-broccoli, midship-frontend, midship-onyx"
 		prompt_path MIDSHIP_DIR "midship parent dir"
+		MIDSHIP_TURBO_BROCCOLI_DIR="$MIDSHIP_DIR/midship-turbo-broccoli"
+		MIDSHIP_FRONTEND_DIR="$MIDSHIP_DIR/midship-frontend"
+		MIDSHIP_ONYX_DIR="$MIDSHIP_DIR/midship-onyx"
 		say "AuditBoard + Cascade parent dir — will contain:"
 		say "    auditboard-backend, auditboard-frontend, auditboard-dev-env, cascade"
 		say "    (can be the same dir as the midship parent)"
@@ -50,6 +53,9 @@ if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 # Non-sibling layouts: hand-edit any path below — scripts read these variables
 # verbatim; the parent-dir prompts are just a convenience.
 MIDSHIP_DIR="$MIDSHIP_DIR"
+MIDSHIP_TURBO_BROCCOLI_DIR="$MIDSHIP_TURBO_BROCCOLI_DIR"
+MIDSHIP_FRONTEND_DIR="$MIDSHIP_FRONTEND_DIR"
+MIDSHIP_ONYX_DIR="$MIDSHIP_ONYX_DIR"
 CASCADE_DIR="$CASCADE_DIR"
 AB_BACKEND_DIR="$AB_BACKEND_DIR"
 AB_FRONTEND_DIR="$AB_FRONTEND_DIR"
@@ -81,9 +87,9 @@ ensure_repo() { # local path, soxhub repo name
 		;;
 	esac
 }
-ensure_repo "$MIDSHIP_DIR/midship-turbo-broccoli" midship-turbo-broccoli
-ensure_repo "$MIDSHIP_DIR/midship-frontend"       midship-frontend
-ensure_repo "$MIDSHIP_DIR/midship-onyx"           midship-onyx
+ensure_repo "$MIDSHIP_TURBO_BROCCOLI_DIR" midship-turbo-broccoli
+ensure_repo "$MIDSHIP_FRONTEND_DIR"       midship-frontend
+ensure_repo "$MIDSHIP_ONYX_DIR"           midship-onyx
 ensure_repo "$CASCADE_DIR"                        cascade
 ensure_repo "$AB_BACKEND_DIR"                     auditboard-backend
 ensure_repo "$AB_FRONTEND_DIR"                    auditboard-frontend
@@ -295,7 +301,7 @@ fi
 # (gitignored), loaded by scripts/load_db_dump.py, which drops and recreates
 # the local Docker Postgres DB. Dev dumps can carry the real dev DB password
 # in a '\restrict' line — it is stripped during the copy below.
-MTB="$MIDSHIP_DIR/midship-turbo-broccoli"
+MTB="$MIDSHIP_TURBO_BROCCOLI_DIR"
 if [ -d "$MTB" ] && [ -t 0 ]; then
 	MS_DEFAULT=$(ls -1 "$MTB/db" 2>/dev/null | grep -E '^dev_dump_.*\.sql$' | tail -n 1)
 	read -r -p "[onboard] Midship: seed/reseed its database from a dev dump? DROPS all local Midship data — skip if unsure [y/N] " MS_SEED || true

@@ -8,7 +8,6 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/paths.sh"
 DEVENV="$AB_DEVENV_DIR"
 CASCADE="$CASCADE_DIR"
-MIDSHIP="$MIDSHIP_DIR"
 LOGS="$HERE/logs"
 mkdir -p "$LOGS"
 
@@ -16,23 +15,23 @@ say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
 up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
 # --- Midship (fixed ports; owns 5432/6379/8080/9980/8000/5173) --------------
-if [ -d "$MIDSHIP/midship-turbo-broccoli" ]; then
+if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	say "midship: docker services"
-	(cd "$MIDSHIP/midship-turbo-broccoli" && docker compose up -d)
+	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && docker compose up -d)
 	# hatchet lives in its own compose project (hatchet-cli); restart its
 	# containers if fleetcom-stop-all.sh --midship (or a reboot) stopped them
 	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null)
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
 	if up 8000; then say "midship API already on 8000"; else
 		say "midship API -> logs/midship-api.log"
-		(cd "$MIDSHIP/midship-turbo-broccoli" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload > "$LOGS/midship-api.log" 2>&1 &)
+		(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload > "$LOGS/midship-api.log" 2>&1 &)
 	fi
 	if up 5173; then say "midship frontend already on 5173"; else
 		say "midship frontend -> logs/midship-frontend.log"
-		(cd "$MIDSHIP/midship-frontend" && nohup npm run dev > "$LOGS/midship-frontend.log" 2>&1 &)
+		(cd "$MIDSHIP_FRONTEND_DIR" && nohup npm run dev > "$LOGS/midship-frontend.log" 2>&1 &)
 	fi
 else
-	say "midship not found at $MIDSHIP — skipping"
+	say "midship-turbo-broccoli not found at $MIDSHIP_TURBO_BROCCOLI_DIR — skipping midship"
 fi
 
 # --- AuditBoard --------------------------------------------------------------

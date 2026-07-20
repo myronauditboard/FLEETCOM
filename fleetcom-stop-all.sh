@@ -43,10 +43,10 @@ kill_port 9001; kill_port 9003                     # api v1/v2 (turbo children f
 brew services stop postgresql@17 >/dev/null 2>&1
 brew services stop redis >/dev/null 2>&1
 
-if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_DIR/midship-turbo-broccoli" ]; then
+if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	say "midship (requested via --midship)"
 	kill_port 8000; kill_port 5173
-	(cd "$MIDSHIP_DIR/midship-turbo-broccoli" && docker compose down)
+	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && docker compose down)
 	stop_containers_named hatchet-cli               # separate compose project; restarted by fleetcom-start-all.sh
 fi
 
