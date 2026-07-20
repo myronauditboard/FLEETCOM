@@ -7,15 +7,13 @@ Midship's ports are treated as fixed; everything else is deconflicted around
 them.
 
 **Repo locations are configurable**: on first run, `fleetcom-onboard.sh` asks
-two questions — the Midship parent dir and the AuditBoard+Cascade parent dir
-(they can be the same directory) — listing the repos that will live under
-each. Enter accepts the default, tab-completion works, and answers persist to
-a gitignored `local.conf` that every script reads. Re-run
-`./fleetcom-onboard.sh --reconfigure` to change them, or hand-edit
-`local.conf` for non-sibling layouts (the scripts read its five paths
-verbatim). **Repos you don't have yet are offered for cloning** (from the
-`soxhub` org via `gh`) into whatever paths you chose. Defaults put everything
-as siblings under `~/Development`:
+one question — the parent directory all repos live under (default
+`~/Development`). Enter accepts the default, tab-completion works, and the
+resulting per-repo paths persist to a gitignored `local.conf` that every
+script reads. Re-run `./fleetcom-onboard.sh --reconfigure` to change them, or
+hand-edit `local.conf` — every repo has its own variable and may live
+anywhere. **Repos you don't have yet are offered for cloning** (from the
+`soxhub` org via `gh`) into whatever paths are configured. The default layout:
 
 ```
 ~/Development/midship-turbo-broccoli  # MIDSHIP_TURBO_BROCCOLI_DIR
@@ -27,11 +25,7 @@ as siblings under `~/Development`:
 ~/Development/auditboard-dev-env      # AB_DEVENV_DIR (machine-learning stays nested inside)
 ```
 
-Every repo has its own variable in `local.conf` and may live anywhere. The two
-prompts just set convenient parents: the midship parent fills in the three
-`MIDSHIP_*_DIR`s (answer e.g. `~/midship` if yours live apart from the rest),
-the auditboard/cascade parent fills in the other four. midship-onyx is cloned
-for source reference only — see the runtime note below.
+midship-onyx is cloned for source reference only — see the runtime note below.
 
 Two repos are special at runtime: **machine-learning** is auto-cloned into
 `auditboard-dev-env/` by `start-background` itself and its services start on
@@ -49,6 +43,7 @@ midship-frontend.
 ```bash
 ./fleetcom-onboard.sh     # one-time, idempotent — applies all port/SSO config
                           # first time? seed the AB database too — see "Database seeding"
+./fleetcom-onboard.sh --reconfigure   # change repo locations later
 ./fleetcom-start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
 ./fleetcom-doctor.sh      # port + health report
 ./fleetcom-restart-all.sh # full bounce of everything, Midship included

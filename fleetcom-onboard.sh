@@ -27,22 +27,20 @@ prompt_path() { # varname, description — read -e enables tab-completion
 }
 if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 	if [ -t 0 ]; then
-		AB_PARENT="$(dirname "$AB_DEVENV_DIR")"
-		say "where do your repos live? (Enter accepts the default; tab-completion works)"
-		say "Midship parent dir — will contain:"
-		say "    midship-turbo-broccoli, midship-frontend, midship-onyx"
-		prompt_path MIDSHIP_DIR "midship parent dir"
-		MIDSHIP_TURBO_BROCCOLI_DIR="$MIDSHIP_DIR/midship-turbo-broccoli"
-		MIDSHIP_FRONTEND_DIR="$MIDSHIP_DIR/midship-frontend"
-		MIDSHIP_ONYX_DIR="$MIDSHIP_DIR/midship-onyx"
-		say "AuditBoard + Cascade parent dir — will contain:"
-		say "    auditboard-backend, auditboard-frontend, auditboard-dev-env, cascade"
-		say "    (can be the same dir as the midship parent)"
-		prompt_path AB_PARENT "auditboard/cascade parent dir"
-		CASCADE_DIR="$AB_PARENT/cascade"
-		AB_BACKEND_DIR="$AB_PARENT/auditboard-backend"
-		AB_FRONTEND_DIR="$AB_PARENT/auditboard-frontend"
-		AB_DEVENV_DIR="$AB_PARENT/auditboard-dev-env"
+		REPOS_PARENT="$(dirname "$AB_DEVENV_DIR")"
+		say "where do your repos live? one parent dir for all of them — will contain:"
+		say "    midship-turbo-broccoli, midship-frontend, midship-onyx,"
+		say "    cascade, auditboard-backend, auditboard-frontend, auditboard-dev-env"
+		say "(Enter accepts the default; tab-completion works; individual repos can"
+		say " live elsewhere — hand-edit local.conf afterwards, see README)"
+		prompt_path REPOS_PARENT "repos parent dir"
+		MIDSHIP_TURBO_BROCCOLI_DIR="$REPOS_PARENT/midship-turbo-broccoli"
+		MIDSHIP_FRONTEND_DIR="$REPOS_PARENT/midship-frontend"
+		MIDSHIP_ONYX_DIR="$REPOS_PARENT/midship-onyx"
+		CASCADE_DIR="$REPOS_PARENT/cascade"
+		AB_BACKEND_DIR="$REPOS_PARENT/auditboard-backend"
+		AB_FRONTEND_DIR="$REPOS_PARENT/auditboard-frontend"
+		AB_DEVENV_DIR="$REPOS_PARENT/auditboard-dev-env"
 		ML_DIR="$AB_DEVENV_DIR/machine-learning"
 	else
 		say "no TTY — using default/current repo paths"
@@ -52,7 +50,6 @@ if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 # Regenerate with: ./fleetcom-onboard.sh --reconfigure
 # Non-sibling layouts: hand-edit any path below — scripts read these variables
 # verbatim; the parent-dir prompts are just a convenience.
-MIDSHIP_DIR="$MIDSHIP_DIR"
 MIDSHIP_TURBO_BROCCOLI_DIR="$MIDSHIP_TURBO_BROCCOLI_DIR"
 MIDSHIP_FRONTEND_DIR="$MIDSHIP_FRONTEND_DIR"
 MIDSHIP_ONYX_DIR="$MIDSHIP_ONYX_DIR"
