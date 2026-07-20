@@ -18,10 +18,10 @@ verbatim). **Repos you don't have yet are offered for cloning** (from the
 as siblings under `~/Development`:
 
 ```
-~/Development/midship-turbo-broccoli  # under MIDSHIP_DIR (the *parent* dir of midship-* repos)
-~/Development/midship-frontend       #   — set MIDSHIP_DIR to e.g. ~/midship if yours live separately
+~/Development/midship-turbo-broccoli  # under the midship parent dir (MIDSHIP_DIR in local.conf)
+~/Development/midship-frontend       #   — answer e.g. ~/midship at the prompt if yours live separately
 ~/Development/midship-onyx           #   source for reference only — see runtime note below
-~/Development/cascade                # CASCADE_DIR
+~/Development/cascade                # under the auditboard/cascade parent dir (CASCADE_DIR)
 ~/Development/auditboard-backend     # AB_BACKEND_DIR
 ~/Development/auditboard-frontend    # AB_FRONTEND_DIR
 ~/Development/auditboard-dev-env     # AB_DEVENV_DIR (machine-learning stays nested inside)
