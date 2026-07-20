@@ -27,7 +27,10 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
 	if up 8000; then say "midship API already on 8000"; else
 		say "midship API -> logs/midship-api.log"
-		(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload > "$LOGS/midship-api.log" 2>&1 &)
+		# --timeout-graceful-shutdown: uvicorn --reload hangs forever "waiting for
+		# background tasks" when a file change triggers a reload; cap the wait so
+		# reloads recover instead of wedging the API (port bound, nothing answering)
+		(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload --timeout-graceful-shutdown 15 > "$LOGS/midship-api.log" 2>&1 &)
 	fi
 	if up 5173; then say "midship frontend already on 5173"; else
 		say "midship frontend -> logs/midship-frontend.log"
