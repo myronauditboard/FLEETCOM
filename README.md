@@ -18,14 +18,19 @@ verbatim). **Repos you don't have yet are offered for cloning** (from the
 as siblings under `~/Development`:
 
 ```
-~/Development/midship-turbo-broccoli  # under the midship parent dir (MIDSHIP_DIR in local.conf)
-~/Development/midship-frontend       #   — answer e.g. ~/midship at the prompt if yours live separately
-~/Development/midship-onyx           #   source for reference only — see runtime note below
-~/Development/cascade                # under the auditboard/cascade parent dir (CASCADE_DIR)
-~/Development/auditboard-backend     # AB_BACKEND_DIR
-~/Development/auditboard-frontend    # AB_FRONTEND_DIR
-~/Development/auditboard-dev-env     # AB_DEVENV_DIR (machine-learning stays nested inside)
+~/Development/midship-turbo-broccoli  # ┐
+~/Development/midship-frontend        # ├ MIDSHIP_DIR (the parent dir; repo names are fixed)
+~/Development/midship-onyx            # ┘
+~/Development/cascade                 # CASCADE_DIR
+~/Development/auditboard-backend      # AB_BACKEND_DIR
+~/Development/auditboard-frontend     # AB_FRONTEND_DIR
+~/Development/auditboard-dev-env      # AB_DEVENV_DIR (machine-learning stays nested inside)
 ```
+
+Midship's repos have no per-repo variables — `MIDSHIP_DIR` names their shared
+parent (answer e.g. `~/midship` at the prompt if yours live apart from the
+rest). midship-onyx is cloned for source reference only — see the runtime note
+below.
 
 Two repos are special at runtime: **machine-learning** is auto-cloned into
 `auditboard-dev-env/` by `start-background` itself and its services start on
