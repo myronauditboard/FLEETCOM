@@ -4,5 +4,5 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-"$HERE/stop-all.sh" --midship
-"$HERE/start-all.sh"
+"$HERE/fleetcom-stop-all.sh" --midship
+"$HERE/fleetcom-start-all.sh"

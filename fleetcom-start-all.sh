@@ -74,4 +74,4 @@ if up 8088; then say "cascade client already on 8088"; else
 	fi
 fi
 
-say "done — run ./doctor.sh to verify. AB: https://localhost:9002  Cascade: http://localhost:8088"
+say "done — run ./fleetcom-doctor.sh to verify. AB: https://localhost:9002  Cascade: http://localhost:8088"

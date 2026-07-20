@@ -1,6 +1,6 @@
 # FLEETCOM/paths.sh — repo locations, sourced by every script.
-# Defaults below are overridden by local.conf (written by onboard.sh's prompts,
-# gitignored — per-machine). Re-run `onboard.sh --reconfigure` to change paths.
+# Defaults below are overridden by local.conf (written by fleetcom-onboard.sh's prompts,
+# gitignored — per-machine). Re-run `fleetcom-onboard.sh --reconfigure` to change paths.
 # MIDSHIP_DIR is the PARENT dir of the midship-* repos. Default: the same
 # ~/Development as everything else (all repos as siblings); point it elsewhere
 # (e.g. ~/midship) if your machine keeps them separate.

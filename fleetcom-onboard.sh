@@ -39,7 +39,7 @@ if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 	fi
 	cat > "$HERE/local.conf" <<EOF
 # FLEETCOM per-machine repo locations (gitignored).
-# Regenerate with: ./onboard.sh --reconfigure
+# Regenerate with: ./fleetcom-onboard.sh --reconfigure
 MIDSHIP_DIR="$MIDSHIP_DIR"
 CASCADE_DIR="$CASCADE_DIR"
 AB_BACKEND_DIR="$AB_BACKEND_DIR"
@@ -59,7 +59,7 @@ ensure_repo() { # local path, soxhub repo name
 	local path=$1 name=$2 yn
 	[ -d "$path/.git" ] && return 0
 	if [ ! -t 0 ]; then
-		say "WARNING: $name missing at $path — clone it, or re-run onboard.sh interactively"
+		say "WARNING: $name missing at $path — clone it, or re-run fleetcom-onboard.sh interactively"
 		return 0
 	fi
 	read -r -p "[onboard] $name is not at $path — clone it there now? [Y/n] " yn || true
@@ -98,7 +98,7 @@ DOCKER_SETTINGS="$HOME/Library/Group Containers/group.com.docker/settings-store.
 WANT_MEM_MIB=12288 WANT_DISK_MIB=122880
 if [ -f "$DOCKER_SETTINGS" ] && ! python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); sys.exit(0 if s.get("MemoryMiB",0)>=int(sys.argv[2]) and s.get("DiskSizeMiB",0)>=int(sys.argv[3]) else 1)' "$DOCKER_SETTINGS" "$WANT_MEM_MIB" "$WANT_DISK_MIB"; then
 	say "Docker Desktop is below ${WANT_MEM_MIB}MiB memory / ${WANT_DISK_MIB}MiB disk"
-	read -r -p "[onboard] Restart Docker Desktop now to apply? ALL running containers stop; re-run start-all.sh after. [y/N] " yn
+	read -r -p "[onboard] Restart Docker Desktop now to apply? ALL running containers stop; re-run fleetcom-start-all.sh after. [y/N] " yn
 	if [[ "$yn" =~ ^[Yy]$ ]]; then
 		osascript -e 'quit app "Docker Desktop"' 2>/dev/null || true
 		sleep 10
@@ -106,7 +106,7 @@ if [ -f "$DOCKER_SETTINGS" ] && ! python3 -c 'import json,sys; s=json.load(open(
 		open -a "Docker Desktop"
 		say "waiting for docker engine..."
 		until docker info >/dev/null 2>&1; do sleep 3; done
-		say "docker is back — remember: midship compose services do NOT auto-restart (run start-all.sh)"
+		say "docker is back — remember: midship compose services do NOT auto-restart (run fleetcom-start-all.sh)"
 	else
 		say "skipped — set Memory >=12GB and Disk >=120GB in Docker Desktop > Settings > Resources"
 	fi
@@ -143,7 +143,7 @@ else
 
 # ============================================================================
 # $MARKER overrides — keep this block LAST (last export wins).
-# Re-run FLEETCOM/onboard.sh after bin/generate-config regenerates
+# Re-run FLEETCOM/fleetcom-onboard.sh after bin/generate-config regenerates
 # this file. Deconflicts ports with the Midship stack (which holds 5432,
 # 6379, 8000, 8080) and wires local Cascade SSO.
 # ============================================================================
@@ -184,7 +184,7 @@ if [ -d "$ML" ]; then
 		say "ML docker-compose.override.yml created"
 	fi
 else
-	say "machine-learning repo not found (start-background clones it) — re-run onboard.sh after first start"
+	say "machine-learning repo not found (start-background clones it) — re-run fleetcom-onboard.sh after first start"
 fi
 
 # --- 6. Cascade .env SSO block ----------------------------------------------
@@ -208,10 +208,10 @@ if ! { grep -qE '^LAUNCH_DARKLY_SDK_KEY=.+' "$CASCADE/.env" && grep -qE '^LAUNCH
 			printf '\nLAUNCH_DARKLY_SDK_KEY=%s\nLAUNCH_DARKLY_CLIENT_ID=%s\n' "$LD_SDK" "$LD_CID" >> "$CASCADE/.env"
 			say "LaunchDarkly keys written to cascade/.env"
 		else
-			say "WARNING: skipped — the cascade client will crash fetching flags (and land on /404) until both are set in cascade/.env; re-run onboard.sh to be prompted again"
+			say "WARNING: skipped — the cascade client will crash fetching flags (and land on /404) until both are set in cascade/.env; re-run fleetcom-onboard.sh to be prompted again"
 		fi
 	else
-		say "WARNING: LAUNCH_DARKLY_SDK_KEY / LAUNCH_DARKLY_CLIENT_ID missing from cascade/.env and no TTY to prompt — set them manually or re-run onboard.sh interactively"
+		say "WARNING: LAUNCH_DARKLY_SDK_KEY / LAUNCH_DARKLY_CLIENT_ID missing from cascade/.env and no TTY to prompt — set them manually or re-run fleetcom-onboard.sh interactively"
 	fi
 fi
 if grep -q "$MARKER" "$CASCADE/.env"; then
@@ -258,7 +258,7 @@ if [ -t 0 ]; then
 		say "not found: $DUMP_PATH — check for typos and try again, or press Enter to use the workspace default"
 	done
 	if [ -z "$DUMP_PATH" ] && [ -z "$DEFAULT_DUMP" ]; then
-		say "no dump available — ask a teammate for the current platform dataset dump, then re-run onboard.sh or: abc run reset-db"
+		say "no dump available — ask a teammate for the current platform dataset dump, then re-run fleetcom-onboard.sh or: abc run reset-db"
 	else
 		SEED_NAME=$([ -n "$DUMP_PATH" ] && basename "$DUMP_PATH" || echo "$DEFAULT_DUMP")
 		read -r -p "[onboard] Type 'reset' to DROP demo_data and import $SEED_NAME now (anything else skips): " CONFIRM || true
@@ -270,7 +270,7 @@ if [ -t 0 ]; then
 			fi
 			say "AB database seeded from $SEED_NAME (login: ops@soxhub.com / password)"
 		else
-			say "seed skipped — run later via onboard.sh or: abc run reset-db (see README 'Database seeding')"
+			say "seed skipped — run later via fleetcom-onboard.sh or: abc run reset-db (see README 'Database seeding')"
 		fi
 	fi
 elif [ -z "$DEFAULT_DUMP" ]; then
@@ -314,11 +314,11 @@ if [ -d "$MTB" ] && [ -t 0 ]; then
 				sleep 2
 			fi
 			(cd "$MTB" && docker compose up -d postgres && poetry run python scripts/load_db_dump.py "db/$MS_DEFAULT")
-			say "Midship DB seeded from $MS_DEFAULT — run ./start-all.sh to bring the API back"
+			say "Midship DB seeded from $MS_DEFAULT — run ./fleetcom-start-all.sh to bring the API back"
 		else
 			say "Midship seed skipped — later: cd $MTB && poetry run python scripts/load_db_dump.py db/<dump>.sql"
 		fi
 	fi
 fi
 
-say "done. Next: ./start-all.sh && ./doctor.sh — see README.md"
+say "done. Next: ./fleetcom-start-all.sh && ./fleetcom-doctor.sh — see README.md"

@@ -1,7 +1,7 @@
 # FLEETCOM: local overrides for auditboard-dev-env's
 # docker-compose-supplement-dev.yml. Services listed here are skipped in
 # start-background (-s conductor,integrations-extract) and started explicitly
-# with this file layered on (start-all.sh does this):
+# with this file layered on (fleetcom-start-all.sh does this):
 #   docker compose -f docker-compose-supplement-dev.yml \
 #     -f ../FLEETCOM/devenv.override.yml up -d conductor integrations-extract
 services:

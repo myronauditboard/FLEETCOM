@@ -6,9 +6,9 @@ Mac, with local SSO from AuditBoard into Cascade.
 Midship's ports are treated as fixed; everything else is deconflicted around
 them.
 
-**Repo locations are configurable**: on first run, `onboard.sh` prompts for
+**Repo locations are configurable**: on first run, `fleetcom-onboard.sh` prompts for
 each path (Enter accepts the default) and saves your answers to a gitignored
-`local.conf` that every script reads. Re-run `./onboard.sh --reconfigure` to
+`local.conf` that every script reads. Re-run `./fleetcom-onboard.sh --reconfigure` to
 change them. **Repos you don't have yet are offered for cloning** (from the
 `soxhub` org via `gh`) into whatever paths you chose. Defaults put everything
 as siblings under `~/Development`:
@@ -37,12 +37,12 @@ midship-frontend.
 ## Quick start
 
 ```bash
-./onboard.sh     # one-time, idempotent — applies all port/SSO config
+./fleetcom-onboard.sh     # one-time, idempotent — applies all port/SSO config
                  # first time? seed the AB database too — see "Database seeding"
-./start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
-./doctor.sh      # port + health report
-./restart-all.sh # full bounce of everything, Midship included
-./stop-all.sh    # stops Cascade + AuditBoard (--midship to also stop Midship)
+./fleetcom-start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
+./fleetcom-doctor.sh      # port + health report
+./fleetcom-restart-all.sh # full bounce of everything, Midship included
+./fleetcom-stop-all.sh    # stops Cascade + AuditBoard (--midship to also stop Midship)
 ```
 
 Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
@@ -64,7 +64,7 @@ the files up:
 | Target DB | native Postgres :5433 (`demo_data`) | Docker Postgres :5432 |
 | ⚠ Gotcha | `.dump` beats `.sql` in default resolution | dumps may embed the dev DB password in a `\restrict` line — strip it |
 
-`onboard.sh` prompts for both (path with retry, workspace/db default, `reset`
+`fleetcom-onboard.sh` prompts for both (path with retry, workspace/db default, `reset`
 confirmation) and handles the Midship `\restrict` stripping automatically. The
 import is a **one-time seed / occasional refresh** — daily boots only run
 migrations on top.
@@ -72,10 +72,10 @@ migrations on top.
 ### AuditBoard details
 
 The AB demo data comes from a **SQL data dump imported once** — it is *not*
-part of the daily boot. Regular starts (`start-all.sh` → `bin/start-api`) only
+part of the daily boot. Regular starts (`fleetcom-start-all.sh` → `bin/start-api`) only
 run migrations on top of whatever is already in the database.
 
-- `onboard.sh` handles this: it prompts for a dump path (e.g. one you
+- `fleetcom-onboard.sh` handles this: it prompts for a dump path (e.g. one you
   downloaded to `~/Downloads`), defaulting to what's in
   `<auditboard-dev-env>/workspace/`. A mistyped path re-prompts (Enter falls
   back to the default); a valid path is copied into `workspace/` for future
@@ -102,12 +102,12 @@ run migrations on top of whatever is already in the database.
   named `dev_dump_YYYY_MM_DD.sql`. They're gitignored in `db/` — real data,
   ~30-40MB.
 - **Security**: fresh dumps can contain the dev DB password in a `\restrict`
-  line. `onboard.sh` strips it while copying into `db/`; if you handle a dump
+  line. `fleetcom-onboard.sh` strips it while copying into `db/`; if you handle a dump
   manually, run `sed -i '' '/^\\restrict/d' <file>` first and delete the
   unsanitized original.
 - The import (`scripts/load_db_dump.py`) drops the DB and can't do so under
-  active connections — `onboard.sh` stops the Midship API first; bring it back
-  afterwards with `./start-all.sh`.
+  active connections — `fleetcom-onboard.sh` stops the Midship API first; bring it back
+  afterwards with `./fleetcom-start-all.sh`.
 
 ## Port map
 
@@ -144,13 +144,13 @@ run migrations on top of whatever is already in the database.
 |---|---|---|
 | `/opt/homebrew/var/postgresql@17/postgresql.conf` | `port = 5433` | system config |
 | `/opt/homebrew/etc/redis.conf` | `port 6382` | system config |
-| `auditboard-dev-env/.envrc` (tail block) | `DATABASE_URL`, `REDIS_URL`, `DOCKER_REDIS_URL`, `PERMISSIONS_DATABASE_URL`, `CONDUCTOR_SERVER_URL`, `AB_MLSERVICE_LOCAL_SERVICE_PORT`, `CASCADE_JWT_SECRET` | no (gitignored/generated) — **re-run `onboard.sh` after `bin/generate-config`** |
+| `auditboard-dev-env/.envrc` (tail block) | `DATABASE_URL`, `REDIS_URL`, `DOCKER_REDIS_URL`, `PERMISSIONS_DATABASE_URL`, `CONDUCTOR_SERVER_URL`, `AB_MLSERVICE_LOCAL_SERVICE_PORT`, `CASCADE_JWT_SECRET` | no (gitignored/generated) — **re-run `fleetcom-onboard.sh` after `bin/generate-config`** |
 | `cascade/docker-compose.override.yml` | redis + debugpy remaps | no (`.git/info/exclude`) |
-| `auditboard-dev-env/machine-learning/docker-compose.override.yml` | ML local → 8004 | ⚠ tracked file, shows as locally modified — re-apply after pulls (onboard.sh does) |
-| `cascade/.env` (tail block) | `JWT_AUTH_SHARED_SECRET`, `JWT_AUTH_ISSUER`, `AB_DOMAINS`, `AB_LOGIN_URL`, `LAUNCH_DARKLY_SDK_KEY`, `LAUNCH_DARKLY_CLIENT_ID` (prompted by onboard.sh, get from 1Password > QE Team Vault > Cascade base env file) | no (gitignored) |
-| `FLEETCOM/local.conf` | per-machine repo paths (from onboard.sh prompts) | no (gitignored) |
+| `auditboard-dev-env/machine-learning/docker-compose.override.yml` | ML local → 8004 | ⚠ tracked file, shows as locally modified — re-apply after pulls (fleetcom-onboard.sh does) |
+| `cascade/.env` (tail block) | `JWT_AUTH_SHARED_SECRET`, `JWT_AUTH_ISSUER`, `AB_DOMAINS`, `AB_LOGIN_URL`, `LAUNCH_DARKLY_SDK_KEY`, `LAUNCH_DARKLY_CLIENT_ID` (prompted by fleetcom-onboard.sh, get from 1Password > QE Team Vault > Cascade base env file) | no (gitignored) |
+| `FLEETCOM/local.conf` | per-machine repo paths (from fleetcom-onboard.sh prompts) | no (gitignored) |
 | `FLEETCOM/devenv.override.yml` | Conductor → 18080; integrations-extract `NODE_OPTIONS=--max-old-space-size=8192` | yes (this repo) |
-| Docker Desktop `settings-store.json` | Memory ≥ 12GB, disk ≥ 120GB (onboard.sh offers to apply; needs Docker restart) | system config |
+| Docker Desktop `settings-store.json` | Memory ≥ 12GB, disk ≥ 120GB (fleetcom-onboard.sh offers to apply; needs Docker restart) | system config |
 
 ## SSO in one paragraph
 
@@ -196,7 +196,7 @@ belongs in auditboard-backend: Hapi `state.failAction: 'log'` — mention it in
   after SSO**: `LAUNCH_DARKLY_SDK_KEY` / `LAUNCH_DARKLY_CLIENT_ID` are missing
   from `cascade/.env` (get them from 1Password > QE Team Vault > Cascade base
   env file, then recreate the web containers and restart Parcel — or just
-  re-run `onboard.sh`, which prompts for them). The SSO/JWT auth itself works
+  re-run `fleetcom-onboard.sh`, which prompts for them). The SSO/JWT auth itself works
   without them.
 
 - Cascade Playwright E2E starts a wiremock on host 9001 → collides with the AB
