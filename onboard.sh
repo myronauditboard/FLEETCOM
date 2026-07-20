@@ -207,12 +207,27 @@ DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail 
 [ -z "$DEFAULT_DUMP" ] && DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.sql(\.zip)?$' | tail -n 1)
 if [ -t 0 ]; then
 	say "AB database seed — importing a dump DROPS and replaces the ENTIRE demo_data DB (all local AB data)"
-	read -r -p "[onboard] SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
-	DUMP_PATH="${DUMP_PATH/#\~/$HOME}"
-	if [ -n "$DUMP_PATH" ] && [ ! -f "$DUMP_PATH" ]; then
-		say "WARNING: $DUMP_PATH not found — falling back to workspace default"
-		DUMP_PATH=""
-	fi
+	while :; do
+		read -r -p "[onboard] SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
+		DUMP_PATH="${DUMP_PATH/#\~/$HOME}"
+		[ -z "$DUMP_PATH" ] && break
+		if [ -f "$DUMP_PATH" ]; then
+			# Keep a copy in the team-standard location. Do NOT rename: the
+			# extension selects the import tool (.dump -> pg_restore, else psql).
+			WS_COPY="$DEVENV/workspace/$(basename "$DUMP_PATH")"
+			mkdir -p "$DEVENV/workspace"
+			if [ ! -f "$WS_COPY" ]; then
+				cp "$DUMP_PATH" "$WS_COPY"
+				say "copied $(basename "$DUMP_PATH") into $DEVENV/workspace/"
+				case "$DUMP_PATH" in *.dump) ;; *)
+					say "note: workspace *default* resolution prefers .dump files over .sql — enter this path explicitly on future runs, or clear old .dump files from workspace/"
+				;; esac
+			fi
+			DUMP_PATH="$WS_COPY"
+			break
+		fi
+		say "not found: $DUMP_PATH — check for typos and try again, or press Enter to use the workspace default"
+	done
 	if [ -z "$DUMP_PATH" ] && [ -z "$DEFAULT_DUMP" ]; then
 		say "no dump available — ask a teammate for the current platform dataset dump, then re-run onboard.sh or: abc run reset-db"
 	else

@@ -44,10 +44,14 @@ run migrations on top of whatever is already in the database.
 
 - `onboard.sh` handles this: it prompts for a dump path (e.g. one you
   downloaded to `~/Downloads`), defaulting to what's in
-  `auditboard-dev-env/workspace/`, then asks you to type `reset` before
-  importing — because the import is **destructive**: it drops and replaces the
-  whole `demo_data` DB, including any local AB state. Seed login afterwards:
-  `ops@soxhub.com` / `password`.
+  `<auditboard-dev-env>/workspace/`. A mistyped path re-prompts (Enter falls
+  back to the default); a valid path is copied into `workspace/` for future
+  use. It then asks you to type `reset` before importing — because the import
+  is **destructive**: it drops and replaces the whole `demo_data` DB,
+  including any local AB state. Seed login afterwards: `ops@soxhub.com` /
+  `password`. Keep the file's original extension — it selects the import tool
+  (`.dump` → `pg_restore`, `.sql` → `psql`); renaming a `.sql` to `.dump`
+  breaks the import.
 - Workspace precedence (when several dumps exist): the alphabetically-last
   `.dump` wins over `.sql.zip` over `.sql`, regardless of age — an explicitly
   entered path bypasses this. No dump anywhere? Ask a teammate for the current
