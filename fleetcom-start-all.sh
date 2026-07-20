@@ -20,7 +20,7 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && docker compose up -d)
 	# hatchet lives in its own compose project (hatchet-cli); restart its
 	# containers if fleetcom-stop-all.sh --midship (or a reboot) stopped them
-	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null)
+	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null || true)
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
 	if up 8000; then say "midship API already on 8000"; else
 		say "midship API -> logs/midship-api.log"

@@ -244,8 +244,8 @@ fi
 # reset-db terminates active connections itself, so servers can stay up.
 # Note workspace precedence is .dump > .sql.zip > .sql regardless of age; an
 # explicitly entered path bypasses that via DATA_DUMP_FILE.
-DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail -n 1)
-[ -z "$DEFAULT_DUMP" ] && DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.sql(\.zip)?$' | tail -n 1)
+DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail -n 1 || true)
+[ -z "$DEFAULT_DUMP" ] && DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.sql(\.zip)?$' | tail -n 1 || true)
 if [ -t 0 ]; then
 	read -r -p "[onboard] AuditBoard: seed/reseed its database from a SQL dump? DROPS all local AB data — skip if unsure [y/N] " AB_SEED || true
 	if [[ ! "${AB_SEED:-}" =~ ^[Yy]$ ]]; then
@@ -300,7 +300,7 @@ fi
 # in a '\restrict' line — it is stripped during the copy below.
 MTB="$MIDSHIP_TURBO_BROCCOLI_DIR"
 if [ -d "$MTB" ] && [ -t 0 ]; then
-	MS_DEFAULT=$(ls -1 "$MTB/db" 2>/dev/null | grep -E '^dev_dump_.*\.sql$' | tail -n 1)
+	MS_DEFAULT=$(ls -1 "$MTB/db" 2>/dev/null | grep -E '^dev_dump_.*\.sql$' | tail -n 1 || true)
 	read -r -p "[onboard] Midship: seed/reseed its database from a dev dump? DROPS all local Midship data — skip if unsure [y/N] " MS_SEED || true
 	if [[ ! "${MS_SEED:-}" =~ ^[Yy]$ ]]; then
 		say "Midship seed skipped — later: re-run fleetcom-onboard.sh"
