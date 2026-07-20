@@ -18,7 +18,7 @@ anywhere. **Repos you don't have yet are offered for cloning** (from the
 ```
 ~/Development/midship-turbo-broccoli  # MIDSHIP_TURBO_BROCCOLI_DIR
 ~/Development/midship-frontend        # MIDSHIP_FRONTEND_DIR
-~/Development/midship-onyx            # MIDSHIP_ONYX_DIR
+~/Development/midship-onyx            # MIDSHIP_ONYX_DIR (source reference only)
 ~/Development/cascade                 # CASCADE_DIR
 ~/Development/auditboard-backend      # AB_BACKEND_DIR
 ~/Development/auditboard-frontend     # AB_FRONTEND_DIR
