@@ -199,11 +199,38 @@ EOF
 	say "cascade .env SSO block appended"
 fi
 
-# --- 7. AB database seed dump (informational — import is destructive) -------
-if ls "$DEVENV/workspace/"*.dump >/dev/null 2>&1 || ls "$DEVENV/workspace/"*.sql* >/dev/null 2>&1; then
-	say "AB seed dump present in auditboard-dev-env/workspace/ — import (first time or to refresh): abc run reset-db  (destructive; see README 'Database seeding')"
-else
-	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ — ask a teammate for the current platform dataset dump, drop it there, then run: abc run reset-db"
+# --- 7. AB database seed (SQL dump import — DESTRUCTIVE, always confirmed) ---
+# reset-db terminates active connections itself, so servers can stay up.
+# Note workspace precedence is .dump > .sql.zip > .sql regardless of age; an
+# explicitly entered path bypasses that via DATA_DUMP_FILE.
+DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail -n 1)
+[ -z "$DEFAULT_DUMP" ] && DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.sql(\.zip)?$' | tail -n 1)
+if [ -t 0 ]; then
+	say "AB database seed — importing a dump DROPS and replaces the ENTIRE demo_data DB (all local AB data)"
+	read -r -p "[onboard] SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
+	DUMP_PATH="${DUMP_PATH/#\~/$HOME}"
+	if [ -n "$DUMP_PATH" ] && [ ! -f "$DUMP_PATH" ]; then
+		say "WARNING: $DUMP_PATH not found — falling back to workspace default"
+		DUMP_PATH=""
+	fi
+	if [ -z "$DUMP_PATH" ] && [ -z "$DEFAULT_DUMP" ]; then
+		say "no dump available — ask a teammate for the current platform dataset dump, then re-run onboard.sh or: abc run reset-db"
+	else
+		SEED_NAME=$([ -n "$DUMP_PATH" ] && basename "$DUMP_PATH" || echo "$DEFAULT_DUMP")
+		read -r -p "[onboard] Type 'reset' to DROP demo_data and import $SEED_NAME now (anything else skips): " CONFIRM || true
+		if [ "$CONFIRM" = "reset" ]; then
+			if [ -n "$DUMP_PATH" ]; then
+				(cd "$DEVENV" && DATA_DUMP_FILE="$DUMP_PATH" direnv exec . abc run reset-db -- -y)
+			else
+				(cd "$DEVENV" && direnv exec . abc run reset-db -- -y)
+			fi
+			say "AB database seeded from $SEED_NAME (login: ops@soxhub.com / password)"
+		else
+			say "seed skipped — run later via onboard.sh or: abc run reset-db (see README 'Database seeding')"
+		fi
+	fi
+elif [ -z "$DEFAULT_DUMP" ]; then
+	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ and no TTY to prompt — ask a teammate for the current platform dataset dump, then run: abc run reset-db"
 fi
 
 say "done. Next: ./start-all.sh && ./doctor.sh — see README.md"

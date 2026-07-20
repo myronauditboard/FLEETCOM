@@ -42,13 +42,18 @@ The AB demo data comes from a **SQL data dump imported once** — it is *not*
 part of the daily boot. Regular starts (`start-all.sh` → `bin/start-api`) only
 run migrations on top of whatever is already in the database.
 
-- Drop a dump into `auditboard-dev-env/workspace/` — a `.dump` (preferred),
-  `.sql.zip`, or `.sql`. When several exist, the alphabetically-last `.dump`
-  wins (e.g. `platform-dataset.dump`). No dump? Ask a teammate for the current
+- `onboard.sh` handles this: it prompts for a dump path (e.g. one you
+  downloaded to `~/Downloads`), defaulting to what's in
+  `auditboard-dev-env/workspace/`, then asks you to type `reset` before
+  importing — because the import is **destructive**: it drops and replaces the
+  whole `demo_data` DB, including any local AB state. Seed login afterwards:
+  `ops@soxhub.com` / `password`.
+- Workspace precedence (when several dumps exist): the alphabetically-last
+  `.dump` wins over `.sql.zip` over `.sql`, regardless of age — an explicitly
+  entered path bypasses this. No dump anywhere? Ask a teammate for the current
   platform dataset — without one, `reset-db` falls back to a minimal empty seed.
-- Import it: `abc run reset-db` (from `auditboard-dev-env`). **Destructive**:
-  drops and replaces the whole `demo_data` DB, including any local AB state.
-  Seed login afterwards: `ops@soxhub.com` / `password`.
+- Manual alternative: `abc run reset-db` from `auditboard-dev-env`
+  (`DATA_DUMP_FILE=/path/to/dump.sql` to pick a specific file).
 - When to run: first-time setup, or whenever you want to refresh to the
   canonical dataset. Everything else (Cascade's DB, Midship's DB) is separate
   and unaffected — Cascade seeds via its own `migrate` + `bootstrap`, and SSO
