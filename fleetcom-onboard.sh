@@ -17,9 +17,9 @@ die() { printf '\033[31m[onboard] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 # --- repo locations ----------------------------------------------------------
 # Prompt once (Enter accepts the default), persist to gitignored local.conf.
 # Re-run with --reconfigure to change. Without a TTY, defaults are used as-is.
-prompt_path() { # varname, description
+prompt_path() { # varname, description — read -e enables tab-completion
 	local var=$1 desc=$2 val
-	read -r -p "[onboard] $desc [${!var}]: " val || true
+	read -e -r -p "[onboard] $desc [${!var}]: " val || true
 	val="${val:-${!var}}"
 	val="${val/#\~/$HOME}"
 	[ -d "$val" ] || say "note: $val does not exist (yet)"
@@ -27,12 +27,19 @@ prompt_path() { # varname, description
 }
 if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 	if [ -t 0 ]; then
-		say "where do your repos live? (Enter to accept each default)"
-		prompt_path MIDSHIP_DIR     "midship repos parent dir"
-		prompt_path CASCADE_DIR     "cascade repo"
-		prompt_path AB_BACKEND_DIR  "auditboard-backend repo"
-		prompt_path AB_FRONTEND_DIR "auditboard-frontend repo"
-		prompt_path AB_DEVENV_DIR   "auditboard-dev-env repo"
+		AB_PARENT="$(dirname "$AB_DEVENV_DIR")"
+		say "where do your repos live? (Enter accepts the default; tab-completion works)"
+		say "Midship parent dir — will contain:"
+		say "    midship-turbo-broccoli, midship-frontend, midship-onyx"
+		prompt_path MIDSHIP_DIR "midship parent dir"
+		say "AuditBoard + Cascade parent dir — will contain:"
+		say "    auditboard-backend, auditboard-frontend, auditboard-dev-env, cascade"
+		say "    (can be the same dir as the midship parent)"
+		prompt_path AB_PARENT "auditboard/cascade parent dir"
+		CASCADE_DIR="$AB_PARENT/cascade"
+		AB_BACKEND_DIR="$AB_PARENT/auditboard-backend"
+		AB_FRONTEND_DIR="$AB_PARENT/auditboard-frontend"
+		AB_DEVENV_DIR="$AB_PARENT/auditboard-dev-env"
 		ML_DIR="$AB_DEVENV_DIR/machine-learning"
 	else
 		say "no TTY — using default/current repo paths"
@@ -40,6 +47,8 @@ if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 	cat > "$HERE/local.conf" <<EOF
 # FLEETCOM per-machine repo locations (gitignored).
 # Regenerate with: ./fleetcom-onboard.sh --reconfigure
+# Non-sibling layouts: hand-edit any path below — scripts read these variables
+# verbatim; the parent-dir prompts are just a convenience.
 MIDSHIP_DIR="$MIDSHIP_DIR"
 CASCADE_DIR="$CASCADE_DIR"
 AB_BACKEND_DIR="$AB_BACKEND_DIR"
@@ -235,9 +244,12 @@ fi
 DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail -n 1)
 [ -z "$DEFAULT_DUMP" ] && DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.sql(\.zip)?$' | tail -n 1)
 if [ -t 0 ]; then
-	say "AB database seed — importing a dump DROPS and replaces the ENTIRE demo_data DB (all local AB data)"
+	read -r -p "[onboard] AuditBoard: seed/reseed its database from a SQL dump? DROPS all local AB data — skip if unsure [y/N] " AB_SEED || true
+	if [[ ! "${AB_SEED:-}" =~ ^[Yy]$ ]]; then
+		say "AuditBoard seed skipped — later: re-run fleetcom-onboard.sh or: abc run reset-db"
+	else
 	while :; do
-		read -r -p "[onboard] SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
+		read -e -r -p "[onboard] AuditBoard SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
 		DUMP_PATH="${DUMP_PATH/#\~/$HOME}"
 		[ -z "$DUMP_PATH" ] && break
 		if [ -f "$DUMP_PATH" ]; then
@@ -261,7 +273,7 @@ if [ -t 0 ]; then
 		say "no dump available — ask a teammate for the current platform dataset dump, then re-run fleetcom-onboard.sh or: abc run reset-db"
 	else
 		SEED_NAME=$([ -n "$DUMP_PATH" ] && basename "$DUMP_PATH" || echo "$DEFAULT_DUMP")
-		read -r -p "[onboard] Type 'reset' to DROP demo_data and import $SEED_NAME now (anything else skips): " CONFIRM || true
+		read -r -p "[onboard] Type 'reset' to DROP the AuditBoard demo_data DB and import $SEED_NAME now (anything else skips): " CONFIRM || true
 		if [ "$CONFIRM" = "reset" ]; then
 			if [ -n "$DUMP_PATH" ]; then
 				(cd "$DEVENV" && DATA_DUMP_FILE="$DUMP_PATH" direnv exec . abc run reset-db -- -y)
@@ -272,6 +284,7 @@ if [ -t 0 ]; then
 		else
 			say "seed skipped — run later via fleetcom-onboard.sh or: abc run reset-db (see README 'Database seeding')"
 		fi
+	fi
 	fi
 elif [ -z "$DEFAULT_DUMP" ]; then
 	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ and no TTY to prompt — ask a teammate for the current platform dataset dump, then run: abc run reset-db"
@@ -285,9 +298,12 @@ fi
 MTB="$MIDSHIP_DIR/midship-turbo-broccoli"
 if [ -d "$MTB" ] && [ -t 0 ]; then
 	MS_DEFAULT=$(ls -1 "$MTB/db" 2>/dev/null | grep -E '^dev_dump_.*\.sql$' | tail -n 1)
-	say "Midship database seed — importing DROPS and replaces the ENTIRE local Midship DB"
+	read -r -p "[onboard] Midship: seed/reseed its database from a dev dump? DROPS all local Midship data — skip if unsure [y/N] " MS_SEED || true
+	if [[ ! "${MS_SEED:-}" =~ ^[Yy]$ ]]; then
+		say "Midship seed skipped — later: re-run fleetcom-onboard.sh"
+	else
 	while :; do
-		read -r -p "[onboard] Midship dev dump to import (Enter = db/ default: ${MS_DEFAULT:-none found}): " MS_PATH || true
+		read -e -r -p "[onboard] Midship dev dump to import (Enter = db/ default: ${MS_DEFAULT:-none found}): " MS_PATH || true
 		MS_PATH="${MS_PATH/#\~/$HOME}"
 		[ -z "$MS_PATH" ] && break
 		if [ -f "$MS_PATH" ]; then
@@ -318,6 +334,7 @@ if [ -d "$MTB" ] && [ -t 0 ]; then
 		else
 			say "Midship seed skipped — later: cd $MTB && poetry run python scripts/load_db_dump.py db/<dump>.sql"
 		fi
+	fi
 	fi
 fi
 

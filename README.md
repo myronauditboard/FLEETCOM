@@ -6,10 +6,14 @@ Mac, with local SSO from AuditBoard into Cascade.
 Midship's ports are treated as fixed; everything else is deconflicted around
 them.
 
-**Repo locations are configurable**: on first run, `fleetcom-onboard.sh` prompts for
-each path (Enter accepts the default) and saves your answers to a gitignored
-`local.conf` that every script reads. Re-run `./fleetcom-onboard.sh --reconfigure` to
-change them. **Repos you don't have yet are offered for cloning** (from the
+**Repo locations are configurable**: on first run, `fleetcom-onboard.sh` asks
+two questions — the Midship parent dir and the AuditBoard+Cascade parent dir
+(they can be the same directory) — listing the repos that will live under
+each. Enter accepts the default, tab-completion works, and answers persist to
+a gitignored `local.conf` that every script reads. Re-run
+`./fleetcom-onboard.sh --reconfigure` to change them, or hand-edit
+`local.conf` for non-sibling layouts (the scripts read its five paths
+verbatim). **Repos you don't have yet are offered for cloning** (from the
 `soxhub` org via `gh`) into whatever paths you chose. Defaults put everything
 as siblings under `~/Development`:
 
@@ -64,8 +68,11 @@ the files up:
 | Target DB | native Postgres :5433 (`demo_data`) | Docker Postgres :5432 |
 | ⚠ Gotcha | `.dump` beats `.sql` in default resolution | dumps may embed the dev DB password in a `\restrict` line — strip it |
 
-`fleetcom-onboard.sh` prompts for both (path with retry, workspace/db default, `reset`
-confirmation) and handles the Midship `\restrict` stripping automatically. The
+`fleetcom-onboard.sh` prompts for both, each gated by an up-front
+`seed/reseed? [y/N]` question (default **No** — pressing Enter skips the whole
+thing safely). Answering yes gets a dump-path prompt (tab-completion, retry on
+typos, workspace/db default) and a final type-`reset` confirmation before the
+destructive import. Midship `\restrict` password-stripping is automatic. The
 import is a **one-time seed / occasional refresh** — daily boots only run
 migrations on top.
 
