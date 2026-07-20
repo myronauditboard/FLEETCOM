@@ -248,4 +248,48 @@ elif [ -z "$DEFAULT_DUMP" ]; then
 	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ and no TTY to prompt — ask a teammate for the current platform dataset dump, then run: abc run reset-db"
 fi
 
+# --- 8. Midship database seed (dev dump import — DESTRUCTIVE, confirmed) ----
+# Midship's flow differs from AB's: dumps live in midship-turbo-broccoli/db/
+# (gitignored), loaded by scripts/load_db_dump.py, which drops and recreates
+# the local Docker Postgres DB. Dev dumps can carry the real dev DB password
+# in a '\restrict' line — it is stripped during the copy below.
+MTB="$MIDSHIP_DIR/midship-turbo-broccoli"
+if [ -d "$MTB" ] && [ -t 0 ]; then
+	MS_DEFAULT=$(ls -1 "$MTB/db" 2>/dev/null | grep -E '^dev_dump_.*\.sql$' | tail -n 1)
+	say "Midship database seed — importing DROPS and replaces the ENTIRE local Midship DB"
+	while :; do
+		read -r -p "[onboard] Midship dev dump to import (Enter = db/ default: ${MS_DEFAULT:-none found}): " MS_PATH || true
+		MS_PATH="${MS_PATH/#\~/$HOME}"
+		[ -z "$MS_PATH" ] && break
+		if [ -f "$MS_PATH" ]; then
+			MS_COPY="$MTB/db/$(basename "$MS_PATH")"
+			mkdir -p "$MTB/db"
+			# strip the \restrict password line while copying (never edit the original)
+			sed '/^\\restrict/d' "$MS_PATH" > "$MS_COPY"
+			say "copied $(basename "$MS_PATH") into $MTB/db/ (password \\restrict line stripped)"
+			grep -qc '^\\restrict' "$MS_PATH" >/dev/null 2>&1 \
+				&& say "note: the ORIGINAL at $MS_PATH still contains the dev DB password — consider deleting it"
+			MS_DEFAULT="$(basename "$MS_COPY")"
+			break
+		fi
+		say "not found: $MS_PATH — check for typos and try again, or press Enter to use the db/ default"
+	done
+	if [ -z "$MS_DEFAULT" ]; then
+		say "no Midship dump available — generate one per midship-turbo-broccoli README ('Load a Full Dev Database Dump') or get one from a teammate"
+	else
+		read -r -p "[onboard] Type 'reset' to DROP the Midship DB and import $MS_DEFAULT now (anything else skips): " MS_CONFIRM || true
+		if [ "$MS_CONFIRM" = "reset" ]; then
+			if lsof -tiTCP:8000 -sTCP:LISTEN >/dev/null 2>&1; then
+				say "stopping the Midship API on 8000 (load_db_dump.py can't drop the DB under active connections)"
+				kill $(lsof -tiTCP:8000 -sTCP:LISTEN) 2>/dev/null || true
+				sleep 2
+			fi
+			(cd "$MTB" && docker compose up -d postgres && poetry run python scripts/load_db_dump.py "db/$MS_DEFAULT")
+			say "Midship DB seeded from $MS_DEFAULT — run ./start-all.sh to bring the API back"
+		else
+			say "Midship seed skipped — later: cd $MTB && poetry run python scripts/load_db_dump.py db/<dump>.sql"
+		fi
+	fi
+fi
+
 say "done. Next: ./start-all.sh && ./doctor.sh — see README.md"

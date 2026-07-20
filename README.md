@@ -36,7 +36,25 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 **http://127.0.0.1:8088** authenticated. Use **Chrome** — Safari refuses the
 `secure` cookie Cascade sets on plain-http 127.0.0.1.
 
-## Database seeding (AuditBoard)
+## Database seeding
+
+Two stacks have dump-based seeding, with **different conventions** — don't mix
+the files up:
+
+| | AuditBoard | Midship |
+|---|---|---|
+| Dump location | `<auditboard-dev-env>/workspace/` | `<midship>/midship-turbo-broccoli/db/` |
+| File types | `.dump` (pg_restore) / `.sql` (psql) | plain `.sql` (`dev_dump_YYYY_MM_DD.sql`) |
+| Import command | `abc run reset-db` | `poetry run python scripts/load_db_dump.py db/<file>` |
+| Target DB | native Postgres :5433 (`demo_data`) | Docker Postgres :5432 |
+| ⚠ Gotcha | `.dump` beats `.sql` in default resolution | dumps may embed the dev DB password in a `\restrict` line — strip it |
+
+`onboard.sh` prompts for both (path with retry, workspace/db default, `reset`
+confirmation) and handles the Midship `\restrict` stripping automatically. The
+import is a **one-time seed / occasional refresh** — daily boots only run
+migrations on top.
+
+### AuditBoard details
 
 The AB demo data comes from a **SQL data dump imported once** — it is *not*
 part of the daily boot. Regular starts (`start-all.sh` → `bin/start-api`) only
@@ -59,9 +77,22 @@ run migrations on top of whatever is already in the database.
 - Manual alternative: `abc run reset-db` from `auditboard-dev-env`
   (`DATA_DUMP_FILE=/path/to/dump.sql` to pick a specific file).
 - When to run: first-time setup, or whenever you want to refresh to the
-  canonical dataset. Everything else (Cascade's DB, Midship's DB) is separate
-  and unaffected — Cascade seeds via its own `migrate` + `bootstrap`, and SSO
-  users auto-provision on first login.
+  canonical dataset. Cascade's DB is separate and unaffected — it seeds via
+  its own `migrate` + `bootstrap`, and SSO users auto-provision on first login.
+
+### Midship details
+
+- Dumps come from the dev RDS instance (see midship-turbo-broccoli README →
+  "Load a Full Dev Database Dump" for the bastion/pg_dump recipe) and are
+  named `dev_dump_YYYY_MM_DD.sql`. They're gitignored in `db/` — real data,
+  ~30-40MB.
+- **Security**: fresh dumps can contain the dev DB password in a `\restrict`
+  line. `onboard.sh` strips it while copying into `db/`; if you handle a dump
+  manually, run `sed -i '' '/^\\restrict/d' <file>` first and delete the
+  unsanitized original.
+- The import (`scripts/load_db_dump.py`) drops the DB and can't do so under
+  active connections — `onboard.sh` stops the Midship API first; bring it back
+  afterwards with `./start-all.sh`.
 
 ## Port map
 
