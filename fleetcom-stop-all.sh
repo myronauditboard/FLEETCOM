@@ -9,10 +9,23 @@ DEVENV="$AB_DEVENV_DIR"
 CASCADE="$CASCADE_DIR"
 
 say() { printf '\033[36m[stop-all]\033[0m %s\n' "$*"; }
-kill_port() { # gracefully TERM whatever listens on a port
-	local pids
+kill_port() { # gracefully TERM whatever listens on a port — but NEVER Docker:
+	# on macOS, docker-published ports are held by Docker Desktop's backend
+	# process; signalling it disrupts networking for every container.
+	local pids safe="" p
 	pids=$(lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null) || return 0
-	[ -n "$pids" ] && kill $pids 2>/dev/null && say "stopped port $1 (pid $pids)"
+	for p in $pids; do
+		case "$(ps -p "$p" -o comm= 2>/dev/null)" in
+			*[Dd]ocker*) say "port $1 is docker-published — stop the container, not the proxy (skipping pid $p)" ;;
+			*) safe="$safe $p" ;;
+		esac
+	done
+	[ -n "${safe// /}" ] && kill $safe 2>/dev/null && say "stopped port $1 (pid$safe)"
+}
+stop_containers_named() { # docker stop by name filter, quiet when none match
+	local ids
+	ids=$(docker ps -q --filter "name=$1" 2>/dev/null)
+	[ -n "$ids" ] && docker stop $ids >/dev/null && say "stopped $1 container(s)"
 }
 
 say "cascade"
@@ -21,7 +34,8 @@ kill_port 8088                                     # parcel client
 	-f docker-compose.override.yml down 2>/dev/null)
 
 say "auditboard"
-kill_port 9002; kill_port 9006                     # caddy + vite client
+stop_containers_named caddy                        # caddy runs in docker — 9002 is a proxied port
+kill_port 9006; kill_port 9005                     # client + login vite (9005 orphans otherwise)
 kill_port 9001; kill_port 9003                     # api v1/v2 (turbo children follow)
 (cd "$DEVENV" && abc run stop-background)          # supplement services + ML
 (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
@@ -33,6 +47,7 @@ if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_DIR/midship-turbo-broccoli" ]; t
 	say "midship (requested via --midship)"
 	kill_port 8000; kill_port 5173
 	(cd "$MIDSHIP_DIR/midship-turbo-broccoli" && docker compose down)
+	stop_containers_named hatchet-cli               # separate compose project; restarted by fleetcom-start-all.sh
 fi
 
 say "done"
