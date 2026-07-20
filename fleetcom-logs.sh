@@ -41,7 +41,7 @@ touch "$LOGS/ab-api.log" "$LOGS/midship-api.log"
 OPTRO_CMD="tail -n 80 -F '$LOGS/ab-api.log'"
 MIDSHIP_CMD="tail -n 80 -F '$LOGS/midship-api.log'"
 CASCADE_CMD="cd '$CASCADE_DIR' && $CASCADE_COMPOSE logs -f --tail 80 web ws c3 c3manager"
-ALERTS_CMD="{ tail -n 0 -F '$LOGS/ab-api.log' '$LOGS/midship-api.log' & { cd '$CASCADE_DIR' && $CASCADE_COMPOSE logs -f --tail 0 web ws c3 c3manager 2>&1; } & wait; } | grep --line-buffered -iE '\\b(error|warn|exception|traceback|fatal)\\b'"
+ALERTS_CMD="{ tail -n 0 -F '$LOGS/ab-api.log' '$LOGS/midship-api.log' & { cd '$CASCADE_DIR' && $CASCADE_COMPOSE logs -f --tail 0 web ws c3 c3manager 2>&1; } & wait; } | grep --line-buffered -iE '(errors?|warn(ing)?|fatal|exceptions?|traceback)[: ]'"
 
 wrap() { printf '%s; echo; echo "[pane exited — press Enter to close]"; read -r _' "$1"; }
 
