@@ -290,7 +290,7 @@ if [ -t 0 ]; then
 		say "AuditBoard seed skipped — later: re-run fleetcom-onboard.sh or: abc run reset-db"
 	else
 	while :; do
-		read -e -r -p "[onboard] AuditBoard SQL dump to import (Enter = workspace default: ${DEFAULT_DUMP:-none found}): " DUMP_PATH || true
+		read -e -r -p "[onboard] AuditBoard SQL dump to import — type a file path (tab-completion works), or Enter for the workspace default [${DEFAULT_DUMP:-none found}]: " DUMP_PATH || true
 		DUMP_PATH="${DUMP_PATH/#\~/$HOME}"
 		[ -z "$DUMP_PATH" ] && break
 		if [ -f "$DUMP_PATH" ]; then
@@ -344,7 +344,7 @@ if [ -d "$MTB" ] && [ -t 0 ]; then
 		say "Midship seed skipped — later: re-run fleetcom-onboard.sh"
 	else
 	while :; do
-		read -e -r -p "[onboard] Midship dev dump to import (Enter = db/ default: ${MS_DEFAULT:-none found}): " MS_PATH || true
+		read -e -r -p "[onboard] Midship dev dump to import — type a file path (tab-completion works), or Enter for the db/ default [${MS_DEFAULT:-none found}]: " MS_PATH || true
 		MS_PATH="${MS_PATH/#\~/$HOME}"
 		[ -z "$MS_PATH" ] && break
 		if [ -f "$MS_PATH" ]; then
