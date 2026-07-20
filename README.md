@@ -217,6 +217,23 @@ dedicated browser profile for AB work avoids it entirely. (Root-cause fix
 belongs in auditboard-backend: Hapi `state.failAction: 'log'` — mention it in
 #eng-dx.)
 
+### AB API v2 serves stale code after editing backend files
+
+**Symptoms**: you edit `auditboard-backend`, the packages rebuild, but your
+changes don't take effect on `/api/v2/*` — and the alerts pane (or
+`logs/ab-api.log`) shows `Error: listen EADDRINUSE: address already in use
+:::9004`.
+
+**Cause**: turbo-watch's restart of the `api:v2` task doesn't kill the old
+`node dist/index.mjs` process (pnpm wrapper eats the signal). The rebuilt v2
+loses the port race and dies; the old process keeps serving pre-edit code.
+Reproducible on every dependency rebuild — upstream tooling issue, not
+FLEETCOM.
+
+**Fix**: bounce the API — kill whatever holds 9001 and 9003, then from
+`auditboard-backend` run `bin/start-api` again (or just re-run
+`./fleetcom-start-all.sh`, which gap-fills it). v1 hot-reload is unaffected.
+
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404
   after SSO**: `LAUNCH_DARKLY_SDK_KEY` / `LAUNCH_DARKLY_CLIENT_ID` are missing
