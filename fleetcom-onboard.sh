@@ -60,37 +60,80 @@ AB_DEVENV_DIR="$AB_DEVENV_DIR"
 EOF
 	say "repo paths saved to local.conf"
 fi
-DEVENV="$AB_DEVENV_DIR"
-CASCADE="$CASCADE_DIR"
-ML="$ML_DIR"
-
-# --- clone any missing repos -------------------------------------------------
-# All six live in the soxhub GitHub org; gh handles auth (no SSH keys needed).
+# --- locate or clone any missing repos ----------------------------------------
+# All repos live in the soxhub GitHub org; gh handles auth (no SSH keys needed).
 CLONED=0
-ensure_repo() { # local path, soxhub repo name
-	local path=$1 name=$2 yn
+set_conf() { # varname, value — update the running shell AND local.conf
+	local var=$1 val=$2
+	printf -v "$var" '%s' "$val"
+	if grep -q "^${var}=" "$HERE/local.conf" 2>/dev/null; then
+		sed -i '' "s|^${var}=.*|${var}=\"${val}\"|" "$HERE/local.conf"
+	else
+		printf '%s="%s"\n' "$var" "$val" >> "$HERE/local.conf"
+	fi
+}
+gh_clone() { # soxhub repo name, destination
+	command -v gh >/dev/null || die "gh CLI required to clone (brew install gh && gh auth login)"
+	gh repo clone "soxhub/$1" "$2"
+	CLONED=1
+}
+ensure_repo() { # varname, soxhub repo name
+	local var=$1 name=$2 path yn newpath
+	path="${!var}"
 	[ -d "$path/.git" ] && return 0
 	if [ ! -t 0 ]; then
 		say "WARNING: $name missing at $path — clone it, or re-run fleetcom-onboard.sh interactively"
 		return 0
 	fi
-	read -r -p "[onboard] $name is not at $path — clone it there now? [Y/n] " yn || true
-	case "$yn" in
-		[Nn]*) say "skipped cloning $name" ;;
-		*)
-			command -v gh >/dev/null || die "gh CLI required to clone (brew install gh && gh auth login)"
-			gh repo clone "soxhub/$name" "$path"
-			CLONED=1
-		;;
-	esac
+	while :; do
+		say "$name is not at $path"
+		read -r -p "[onboard]   [C]lone it there / [p]oint to a different path (existing checkout or clone target) / [s]kip: " yn || true
+		case "$yn" in
+			[Ss]*)
+				say "skipped $name — set $var in local.conf when ready"
+				return 0
+			;;
+			[Pp]*)
+				read -e -r -p "[onboard]   path for $name: " newpath || true
+				newpath="${newpath/#\~/$HOME}"
+				[ -z "$newpath" ] && continue
+				if [ -d "$newpath/.git" ]; then
+					set_conf "$var" "$newpath"
+					say "$name -> $newpath (saved to local.conf)"
+					return 0
+				elif [ -e "$newpath" ]; then
+					say "$newpath exists but is not a git checkout — try again"
+				else
+					read -r -p "[onboard]   $newpath doesn't exist — clone $name there? [Y/n] " yn || true
+					case "$yn" in
+						[Nn]*) continue ;;
+						*)
+							gh_clone "$name" "$newpath"
+							set_conf "$var" "$newpath"
+							return 0
+						;;
+					esac
+				fi
+			;;
+			*)
+				gh_clone "$name" "$path"
+				return 0
+			;;
+		esac
+	done
 }
-ensure_repo "$MIDSHIP_TURBO_BROCCOLI_DIR" midship-turbo-broccoli
-ensure_repo "$MIDSHIP_FRONTEND_DIR"       midship-frontend
-ensure_repo "$MIDSHIP_ONYX_DIR"           midship-onyx
-ensure_repo "$CASCADE_DIR"                        cascade
-ensure_repo "$AB_BACKEND_DIR"                     auditboard-backend
-ensure_repo "$AB_FRONTEND_DIR"                    auditboard-frontend
-ensure_repo "$AB_DEVENV_DIR"                      auditboard-dev-env
+ensure_repo MIDSHIP_TURBO_BROCCOLI_DIR midship-turbo-broccoli
+ensure_repo MIDSHIP_FRONTEND_DIR       midship-frontend
+ensure_repo MIDSHIP_ONYX_DIR           midship-onyx
+ensure_repo CASCADE_DIR                cascade
+ensure_repo AB_BACKEND_DIR             auditboard-backend
+ensure_repo AB_FRONTEND_DIR            auditboard-frontend
+ensure_repo AB_DEVENV_DIR              auditboard-dev-env
+
+# aliases resolve AFTER ensure_repo, which may have re-pointed variables
+DEVENV="$AB_DEVENV_DIR"
+CASCADE="$CASCADE_DIR"
+ML="$AB_DEVENV_DIR/machine-learning"
 [ "$CLONED" = 1 ] && say "note: fresh clones still need their dependency setup — 'abc init' covers the auditboard repos; run 'poetry install' in midship-turbo-broccoli and 'npm install' in midship-frontend; JS deps for AB/cascade install on first start"
 
 # --- prerequisites ---------------------------------------------------------
