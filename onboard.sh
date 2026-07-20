@@ -74,6 +74,7 @@ ensure_repo() { # local path, soxhub repo name
 }
 ensure_repo "$MIDSHIP_DIR/midship-turbo-broccoli" midship-turbo-broccoli
 ensure_repo "$MIDSHIP_DIR/midship-frontend"       midship-frontend
+ensure_repo "$MIDSHIP_DIR/midship-onyx"           midship-onyx
 ensure_repo "$CASCADE_DIR"                        cascade
 ensure_repo "$AB_BACKEND_DIR"                     auditboard-backend
 ensure_repo "$AB_FRONTEND_DIR"                    auditboard-frontend

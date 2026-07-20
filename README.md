@@ -16,11 +16,19 @@ as siblings under `~/Development`:
 ```
 ~/Development/midship-turbo-broccoli  # under MIDSHIP_DIR (the *parent* dir of midship-* repos)
 ~/Development/midship-frontend       #   — set MIDSHIP_DIR to e.g. ~/midship if yours live separately
+~/Development/midship-onyx           #   source for reference only — see runtime note below
 ~/Development/cascade                # CASCADE_DIR
 ~/Development/auditboard-backend     # AB_BACKEND_DIR
 ~/Development/auditboard-frontend    # AB_FRONTEND_DIR
 ~/Development/auditboard-dev-env     # AB_DEVENV_DIR (machine-learning stays nested inside)
 ```
+
+Two repos are special at runtime: **machine-learning** is auto-cloned into
+`auditboard-dev-env/` by `start-background` itself and its services start on
+every AB boot (ML local :8004, global :8001). **midship-onyx** (the Collabora
+fork) runs locally as the prebuilt `docviewer` ECR image via
+midship-turbo-broccoli's compose (:9980) — the checkout is for source
+reference/branding work; don't build it from source on macOS.
 
 Fresh clones still need dependency setup: `abc init` for the auditboard
 repos, `poetry install` in midship-turbo-broccoli, `npm install` in
