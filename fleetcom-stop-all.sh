@@ -37,7 +37,10 @@ say "auditboard"
 stop_containers_named caddy                        # caddy runs in docker — 9002 is a proxied port
 kill_port 9006; kill_port 9005                     # client + login vite (9005 orphans otherwise)
 kill_port 9001; kill_port 9003                     # api v1/v2 (turbo children follow)
-(cd "$DEVENV" && abc run stop-background)          # supplement services + ML
+(cd "$DEVENV" && abc run stop-background)          # supplement services (+ ML in theory)
+# upstream bug: machine-learning's bin/ml-stop never cds into its repo, so its
+# 'docker compose stop' silently no-ops — stop the ML project ourselves
+[ -d "$ML_DIR" ] && (cd "$ML_DIR" && docker compose stop 2>/dev/null) && say "machine-learning stopped"
 (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
 	-f "$HERE/devenv.override.yml" down conductor integrations-extract 2>/dev/null) || true
 brew services stop postgresql@17 >/dev/null 2>&1
