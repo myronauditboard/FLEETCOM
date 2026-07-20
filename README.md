@@ -9,15 +9,22 @@ them.
 **Repo locations are configurable**: on first run, `onboard.sh` prompts for
 each path (Enter accepts the default) and saves your answers to a gitignored
 `local.conf` that every script reads. Re-run `./onboard.sh --reconfigure` to
-change them. Defaults:
+change them. **Repos you don't have yet are offered for cloning** (from the
+`soxhub` org via `gh`) into whatever paths you chose. Defaults put everything
+as siblings under `~/Development`:
 
 ```
-~/midship/…                        # MIDSHIP_DIR — midship-turbo-broccoli, midship-frontend, …
-~/Development/cascade              # CASCADE_DIR
-~/Development/auditboard-backend   # AB_BACKEND_DIR
-~/Development/auditboard-frontend  # AB_FRONTEND_DIR
-~/Development/auditboard-dev-env   # AB_DEVENV_DIR (machine-learning stays nested inside)
+~/Development/midship-turbo-broccoli  # under MIDSHIP_DIR (the *parent* dir of midship-* repos)
+~/Development/midship-frontend       #   — set MIDSHIP_DIR to e.g. ~/midship if yours live separately
+~/Development/cascade                # CASCADE_DIR
+~/Development/auditboard-backend     # AB_BACKEND_DIR
+~/Development/auditboard-frontend    # AB_FRONTEND_DIR
+~/Development/auditboard-dev-env     # AB_DEVENV_DIR (machine-learning stays nested inside)
 ```
+
+Fresh clones still need dependency setup: `abc init` for the auditboard
+repos, `poetry install` in midship-turbo-broccoli, `npm install` in
+midship-frontend.
 
 ## Quick start
 

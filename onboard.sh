@@ -52,14 +52,42 @@ DEVENV="$AB_DEVENV_DIR"
 CASCADE="$CASCADE_DIR"
 ML="$ML_DIR"
 
+# --- clone any missing repos -------------------------------------------------
+# All six live in the soxhub GitHub org; gh handles auth (no SSH keys needed).
+CLONED=0
+ensure_repo() { # local path, soxhub repo name
+	local path=$1 name=$2 yn
+	[ -d "$path/.git" ] && return 0
+	if [ ! -t 0 ]; then
+		say "WARNING: $name missing at $path — clone it, or re-run onboard.sh interactively"
+		return 0
+	fi
+	read -r -p "[onboard] $name is not at $path — clone it there now? [Y/n] " yn || true
+	case "$yn" in
+		[Nn]*) say "skipped cloning $name" ;;
+		*)
+			command -v gh >/dev/null || die "gh CLI required to clone (brew install gh && gh auth login)"
+			gh repo clone "soxhub/$name" "$path"
+			CLONED=1
+		;;
+	esac
+}
+ensure_repo "$MIDSHIP_DIR/midship-turbo-broccoli" midship-turbo-broccoli
+ensure_repo "$MIDSHIP_DIR/midship-frontend"       midship-frontend
+ensure_repo "$CASCADE_DIR"                        cascade
+ensure_repo "$AB_BACKEND_DIR"                     auditboard-backend
+ensure_repo "$AB_FRONTEND_DIR"                    auditboard-frontend
+ensure_repo "$AB_DEVENV_DIR"                      auditboard-dev-env
+[ "$CLONED" = 1 ] && say "note: fresh clones still need their dependency setup — 'abc init' covers the auditboard repos; run 'poetry install' in midship-turbo-broccoli and 'npm install' in midship-frontend; JS deps for AB/cascade install on first start"
+
 # --- prerequisites ---------------------------------------------------------
 for cmd in brew docker direnv gh abc lsof; do
 	command -v "$cmd" >/dev/null || die "missing prerequisite: $cmd"
 done
 docker compose version --short | awk -F. '{ exit !($1 > 2 || ($1 == 2 && $2 >= 24)) }' \
 	|| die "docker compose >= 2.24 required (for !override port merging)"
-[ -d "$DEVENV" ] || die "$DEVENV not found — run 'abc init' first"
-[ -d "$CASCADE" ] || die "$CASCADE not found — clone soxhub/cascade"
+[ -d "$DEVENV" ] || die "$DEVENV not found — re-run and accept the clone offer, or run 'abc init'"
+[ -d "$CASCADE" ] || die "$CASCADE not found — re-run and accept the clone offer"
 [ -f "$DEVENV/.envrc" ] || die "$DEVENV/.envrc missing — run CREATE_ENVRC=true bin/generate-config"
 
 # --- 0. Docker Desktop resources: >=12G memory, >=120G disk -----------------
