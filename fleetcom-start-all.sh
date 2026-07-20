@@ -11,6 +11,9 @@ CASCADE="$CASCADE_DIR"
 LOGS="$HERE/logs"
 mkdir -p "$LOGS"
 
+OPEN_LOGS=1
+[ "${1:-}" = "--no-logs" ] && OPEN_LOGS=0
+
 say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
 up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
@@ -79,3 +82,10 @@ if up 8088; then say "cascade client already on 8088"; else
 fi
 
 say "done — run ./fleetcom-doctor.sh to verify. AB: https://localhost:9002  Cascade: http://localhost:8088"
+
+if [ "$OPEN_LOGS" = 1 ] && [ -t 0 ] && command -v tmux >/dev/null; then
+	say "opening backend log panes (Ctrl-b d detaches; ./fleetcom-logs.sh reopens; --no-logs skips this)"
+	"$HERE/fleetcom-logs.sh"
+else
+	say "backend logs + alerts: ./fleetcom-logs.sh"
+fi

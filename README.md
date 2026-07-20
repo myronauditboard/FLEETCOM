@@ -46,6 +46,7 @@ midship-frontend.
 ./fleetcom-onboard.sh --reconfigure   # change repo locations later
 ./fleetcom-start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
 ./fleetcom-doctor.sh      # port + health report
+./fleetcom-logs.sh        # live backend log panes + error alerts (auto-opens after start-all)
 ./fleetcom-restart-all.sh # full bounce of everything, Midship included
 ./fleetcom-stop-all.sh    # stops Cascade + AuditBoard (--midship to also stop Midship)
 ```
@@ -55,6 +56,23 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 **https://localhost:9002/sh/auditboardanalytics/auth** → should land on
 **http://127.0.0.1:8088** authenticated. Use **Chrome** — Safari refuses the
 `secure` cookie Cascade sets on plain-http 127.0.0.1.
+
+## Watching logs
+
+`fleetcom-start-all.sh` ends by opening a tmux session with four panes
+(reopen anytime with `./fleetcom-logs.sh`; skip the auto-open with
+`./fleetcom-start-all.sh --no-logs`):
+
+| | |
+|---|---|
+| **optro-api** — AB backend (`logs/ab-api.log`) | **midship-api** (`logs/midship-api.log`) |
+| **cascade** — docker logs (web/ws/c3) | **alerts** — ERROR/WARN merged from all three |
+
+Basics: `Ctrl-b d` detaches (servers keep running), `./fleetcom-logs.sh`
+reattaches, `./fleetcom-logs.sh --kill` closes the panes; mouse scrolling is
+enabled. `fleetcom-stop-all.sh` closes the session automatically. The client
+logs (`ab-client.log`, `midship-frontend.log`, `cascade-client.log`) also live
+in `FLEETCOM/logs/` for manual tailing.
 
 ## Database seeding
 
