@@ -7,13 +7,13 @@ Midship's ports are treated as fixed; everything else is deconflicted around
 them.
 
 **Repo locations are configurable**: on first run, `fleetcom-onboard.sh` asks
-one question — the parent directory all repos live under (default
-`~/Development`). Enter accepts the default, tab-completion works, and the
-resulting per-repo paths persist to a gitignored `local.conf` that every
-script reads. Re-run `./fleetcom-onboard.sh --reconfigure` to change them, or
-hand-edit `local.conf` — every repo has its own variable and may live
-anywhere. **Repos you don't have yet are offered for cloning** (from the
-`soxhub` org via `gh`) into whatever paths are configured. The default layout:
+for each repo's path, one at a time (Enter accepts the default —
+`~/Development/<repo>`; tab-completion works). Answers persist to a gitignored
+`local.conf` that every script reads; change them later by re-running
+`./fleetcom-onboard.sh --reconfigure` or hand-editing `local.conf`. **Repos
+you don't have yet are offered for cloning** (from the `soxhub` org via `gh`)
+into whatever paths you chose — or point the offer at an existing checkout.
+The default layout:
 
 ```
 ~/Development/midship-turbo-broccoli  # MIDSHIP_TURBO_BROCCOLI_DIR

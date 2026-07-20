@@ -27,20 +27,14 @@ prompt_path() { # varname, description — read -e enables tab-completion
 }
 if [ ! -f "$HERE/local.conf" ] || [ "${1:-}" = "--reconfigure" ]; then
 	if [ -t 0 ]; then
-		REPOS_PARENT="$(dirname "$AB_DEVENV_DIR")"
-		say "where do your repos live? one parent dir for all of them — will contain:"
-		say "    midship-turbo-broccoli, midship-frontend, midship-onyx,"
-		say "    cascade, auditboard-backend, auditboard-frontend, auditboard-dev-env"
-		say "(Enter accepts the default; tab-completion works; individual repos can"
-		say " live elsewhere — hand-edit local.conf afterwards, see README)"
-		prompt_path REPOS_PARENT "repos parent dir"
-		MIDSHIP_TURBO_BROCCOLI_DIR="$REPOS_PARENT/midship-turbo-broccoli"
-		MIDSHIP_FRONTEND_DIR="$REPOS_PARENT/midship-frontend"
-		MIDSHIP_ONYX_DIR="$REPOS_PARENT/midship-onyx"
-		CASCADE_DIR="$REPOS_PARENT/cascade"
-		AB_BACKEND_DIR="$REPOS_PARENT/auditboard-backend"
-		AB_FRONTEND_DIR="$REPOS_PARENT/auditboard-frontend"
-		AB_DEVENV_DIR="$REPOS_PARENT/auditboard-dev-env"
+		say "where does each repo live? (Enter accepts the default; tab-completion works)"
+		prompt_path MIDSHIP_TURBO_BROCCOLI_DIR "midship-turbo-broccoli"
+		prompt_path MIDSHIP_FRONTEND_DIR       "midship-frontend"
+		prompt_path MIDSHIP_ONYX_DIR           "midship-onyx (source reference only)"
+		prompt_path CASCADE_DIR                "cascade"
+		prompt_path AB_BACKEND_DIR             "auditboard-backend"
+		prompt_path AB_FRONTEND_DIR            "auditboard-frontend"
+		prompt_path AB_DEVENV_DIR              "auditboard-dev-env"
 		ML_DIR="$AB_DEVENV_DIR/machine-learning"
 	else
 		say "no TTY — using default/current repo paths"
@@ -58,7 +52,8 @@ AB_BACKEND_DIR="$AB_BACKEND_DIR"
 AB_FRONTEND_DIR="$AB_FRONTEND_DIR"
 AB_DEVENV_DIR="$AB_DEVENV_DIR"
 EOF
-	say "repo paths saved to local.conf"
+	say "repo paths saved to local.conf — change any of them later by hand-editing"
+	say "local.conf or re-running ./fleetcom-onboard.sh --reconfigure"
 fi
 # --- locate or clone any missing repos ----------------------------------------
 # All repos live in the soxhub GitHub org; gh handles auth (no SSH keys needed).
