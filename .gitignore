@@ -11,3 +11,6 @@ local.conf
 # cascade/.env), both gitignored in their own repos.
 .env
 .env.*
+
+# macOS Finder artifacts
+.DS_Store
