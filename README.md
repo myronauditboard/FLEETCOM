@@ -1,6 +1,6 @@
 # FLEETCOM
 
-Run the **Midship**, **Cascade**, and **AuditBoard** stacks side-by-side on one
+Install and run the **Midship**, **Cascade**, and **AuditBoard** stacks side-by-side on one
 Mac, with local SSO from AuditBoard into Cascade.
 
 Midship's ports are treated as fixed; everything else is deconflicted around
@@ -42,7 +42,7 @@ midship-frontend.
 
 ```bash
 ./fleetcom-onboard.sh     # one-time, idempotent — applies all port/SSO config
-                 # first time? seed the AB database too — see "Database seeding"
+                          # first time? seed the AB database too — see "Database seeding"
 ./fleetcom-start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
 ./fleetcom-doctor.sh      # port + health report
 ./fleetcom-restart-all.sh # full bounce of everything, Midship included
