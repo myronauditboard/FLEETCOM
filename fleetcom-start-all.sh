@@ -93,7 +93,8 @@ else
 	say "WARNING: no integrations-extract service in auditboard-dev-env — checkout outdated? (git -C $DEVENV pull, then abc run start-background)"
 fi
 say "AB background services ($SKIP start separately with local overrides)"
-(cd "$DEVENV" && abc run start-background -- -s "$SKIP")
+(cd "$DEVENV" && abc run start-background -- -s "$SKIP") \
+	|| say "WARNING: start-background FAILED — minio/poxa/ML/pdf/excelio may be down. Run 'abc run start-background' in $DEVENV to see why (common: ORKES_ACCESS_TOKEN missing from a stale .envrc — regenerate with CREATE_ENVRC=true bin/generate-config, then re-run fleetcom-onboard.sh)"
 (cd "$DEVENV" && direnv exec . docker compose "${UP_FILES[@]}" up -d "${UP_SERVICES[@]}") \
 	|| say "WARNING: conductor/extract startup failed (see above) — continuing with the rest of the boot"
 
@@ -136,8 +137,14 @@ fi
 # Probe Vite (9006), not Caddy (9002): the caddy docker container outlives a
 # dead Vite process, so 9002 alone gives a false "already running".
 if up 9006; then say "AB client already on 9006"; else
-	say "AB client -> logs/ab-client.log (ope dev from monorepo root; --reuse-last avoids the TTY prompt)"
-	(cd "$AB_FRONTEND_DIR" && nohup direnv exec "$DEVENV" pnpm start --reuse-last > "$LOGS/ab-client.log" 2>&1 &)
+	if ! command -v pnpm >/dev/null; then
+		say "WARNING: pnpm not found — SKIPPING the AB client (install volta + pnpm, or ask abc doctor; then re-run)"
+	elif [ ! -d "$AB_FRONTEND_DIR/node_modules" ]; then
+		say "WARNING: auditboard-frontend has no node_modules — SKIPPING the AB client (run 'pnpm install' there, then re-run)"
+	else
+		say "AB client -> logs/ab-client.log (ope dev from monorepo root; --reuse-last avoids the TTY prompt)"
+		(cd "$AB_FRONTEND_DIR" && nohup direnv exec "$DEVENV" pnpm start --reuse-last > "$LOGS/ab-client.log" 2>&1 &)
+	fi
 fi
 
 # --- Cascade -----------------------------------------------------------------
@@ -153,11 +160,16 @@ say "cascade: migrations"
 docker exec cascade_web python manage.py migrate --no-input || say "migrate failed — is web still starting? retry: docker exec cascade_web python manage.py migrate"
 
 if up 8088; then say "cascade client already on 8088"; else
-	say "cascade client -> logs/cascade-client.log (node pinned from .nvmrc via volta or nvm)"
-	if command -v volta >/dev/null; then
+	if [ ! -d "$CASCADE/client/node_modules" ]; then
+		say "WARNING: cascade/client has no node_modules — SKIPPING the cascade client (cd cascade/client && npm install, then re-run)"
+	elif command -v volta >/dev/null; then
+		say "cascade client -> logs/cascade-client.log (node pinned from .nvmrc via volta)"
 		(cd "$CASCADE/client" && nohup volta run --node "$(cat .nvmrc)" npm start > "$LOGS/cascade-client.log" 2>&1 &)
-	else
+	elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+		say "cascade client -> logs/cascade-client.log (node pinned from .nvmrc via nvm)"
 		(cd "$CASCADE/client" && nohup bash -lc 'source ~/.nvm/nvm.sh && nvm install && nvm use && npm start' > "$LOGS/cascade-client.log" 2>&1 &)
+	else
+		say "WARNING: neither volta nor nvm found — SKIPPING the cascade client (install volta, then re-run)"
 	fi
 fi
 
