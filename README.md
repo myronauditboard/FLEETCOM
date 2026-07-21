@@ -261,6 +261,15 @@ want it. If you see this error anyway, the API was probably started by hand
 with `nohup`/backgrounding — bounce it: kill whatever holds 9001/9003 and
 re-run `./fleetcom-start-all.sh`.
 
+### Workflows page is empty / shows "Install and configure services from the new Integrations module"
+
+The Analytics service isn't enabled for this AB site. Enable it in the app:
+Settings → Site Configuration → **Insider Access** → toggle **Automation** →
+select **"Auditboard Analytics"** (details in the "Automations / Analytics"
+section above). This is stored in the AB database — it can silently disappear
+after a `demo_data` reseed, so re-check it there first whenever the
+Automations module looks unconfigured.
+
 ### Automations page: "an error occurred while decrypting: RangeError: Invalid key length"
 
 **Cause**: your generated `.envrc` predates the credential-encryption key
