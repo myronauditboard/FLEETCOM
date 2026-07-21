@@ -88,7 +88,7 @@ the files up:
 |---|---|---|
 | Dump location | `<auditboard-dev-env>/workspace/` | `<midship>/midship-turbo-broccoli/db/` |
 | File types | `.dump` (pg_restore) / `.sql` (psql) | plain `.sql` (`dev_dump_YYYY_MM_DD.sql`) |
-| Import command | `abc run reset-db` | `poetry run python scripts/load_db_dump.py db/<file>` |
+| Import command | `abc db reset` | `poetry run python scripts/load_db_dump.py db/<file>` |
 | Target DB | native Postgres :5433 (`demo_data`) | Docker Postgres :5432 |
 | ⚠ Gotcha | `.dump` beats `.sql` in default resolution | dumps may embed the dev DB password in a `\restrict` line — strip it |
 
@@ -120,7 +120,7 @@ run migrations on top of whatever is already in the database.
   `.dump` wins over `.sql.zip` over `.sql`, regardless of age — an explicitly
   entered path bypasses this. No dump anywhere? Ask a teammate for the current
   platform dataset — without one, `reset-db` falls back to a minimal empty seed.
-- Manual alternative: `abc run reset-db` from `auditboard-dev-env`
+- Manual alternative: `abc db reset` from `auditboard-dev-env`
   (`DATA_DUMP_FILE=/path/to/dump.sql` to pick a specific file).
 - When to run: first-time setup, or whenever you want to refresh to the
   canonical dataset. Cascade's DB is separate and unaffected — it seeds via

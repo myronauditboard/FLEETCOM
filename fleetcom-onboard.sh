@@ -370,7 +370,7 @@ DEFAULT_DUMP=$(ls -1 "$DEVENV/workspace" 2>/dev/null | grep -E '\.dump$' | tail 
 if [ -t 0 ]; then
 	read -r -p "[onboard] AuditBoard: seed/reseed its database from a SQL dump? DROPS all local AB data — skip if unsure [y/N] " AB_SEED || true
 	if [[ ! "${AB_SEED:-}" =~ ^[Yy]$ ]]; then
-		say "AuditBoard seed skipped — later: re-run fleetcom-onboard.sh or: abc run reset-db"
+		say "AuditBoard seed skipped — later: re-run fleetcom-onboard.sh or: abc db reset"
 	else
 	while :; do
 		read -e -r -p "[onboard] AuditBoard SQL dump to import — type a file path (tab-completion works), or Enter for the workspace default [${DEFAULT_DUMP:-none found}]: " DUMP_PATH || true
@@ -394,24 +394,24 @@ if [ -t 0 ]; then
 		say "not found: $DUMP_PATH — check for typos and try again, or press Enter to use the workspace default"
 	done
 	if [ -z "$DUMP_PATH" ] && [ -z "$DEFAULT_DUMP" ]; then
-		say "no dump available — ask a teammate for the current platform dataset dump, then re-run fleetcom-onboard.sh or: abc run reset-db"
+		say "no dump available — ask a teammate for the current platform dataset dump, then re-run fleetcom-onboard.sh or: abc db reset"
 	else
 		SEED_NAME=$([ -n "$DUMP_PATH" ] && basename "$DUMP_PATH" || echo "$DEFAULT_DUMP")
 		read -r -p "[onboard] Type 'reset' to DROP the AuditBoard demo_data DB and import $SEED_NAME now (anything else skips): " CONFIRM || true
 		if [ "$CONFIRM" = "reset" ]; then
 			if [ -n "$DUMP_PATH" ]; then
-				(cd "$DEVENV" && DATA_DUMP_FILE="$DUMP_PATH" direnv exec . abc run reset-db -- -y)
+				(cd "$DEVENV" && DATA_DUMP_FILE="$DUMP_PATH" direnv exec . abc db reset) || say "WARNING: abc db reset failed — see output above"
 			else
-				(cd "$DEVENV" && direnv exec . abc run reset-db -- -y)
+				(cd "$DEVENV" && direnv exec . abc db reset) || say "WARNING: abc db reset failed — see output above"
 			fi
 			say "AB database seeded from $SEED_NAME (login: ops@soxhub.com / password)"
 		else
-			say "seed skipped — run later via fleetcom-onboard.sh or: abc run reset-db (see README 'Database seeding')"
+			say "seed skipped — run later via fleetcom-onboard.sh or: abc db reset (see README 'Database seeding')"
 		fi
 	fi
 	fi
 elif [ -z "$DEFAULT_DUMP" ]; then
-	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ and no TTY to prompt — ask a teammate for the current platform dataset dump, then run: abc run reset-db"
+	say "WARNING: no SQL data dump in auditboard-dev-env/workspace/ and no TTY to prompt — ask a teammate for the current platform dataset dump, then run: abc db reset"
 fi
 
 # --- 8. Midship database seed (dev dump import — DESTRUCTIVE, confirmed) ----
