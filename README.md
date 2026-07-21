@@ -59,7 +59,7 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 
 ## Watching logs
 
-`fleetcom-start-all.sh` ends by opening a tmux session with four panes
+`fleetcom-start-all.sh` ends by opening a **tmux** session with four panes
 (reopen anytime with `./fleetcom-logs.sh`; skip the auto-open with
 `./fleetcom-start-all.sh --no-logs`):
 
