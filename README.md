@@ -34,9 +34,11 @@ fork) runs locally as the prebuilt `docviewer` ECR image via
 midship-turbo-broccoli's compose (:9980) — the checkout is for source
 reference/branding work; don't build it from source on macOS.
 
-Fresh clones still need dependency setup: `abc init` for the auditboard
-repos, `poetry install` in midship-turbo-broccoli, `npm install` in
-midship-frontend. **Midship's Hatchet (workflow engine, ports 1337/7077) is
+Dependency setup is automatic: `fleetcom-onboard.sh` runs `pnpm install`
+(auditboard-frontend), `poetry install` (midship-turbo-broccoli), and
+`npm install` (midship-frontend, cascade/client) whenever they're missing —
+first run takes a while. It also offers to regenerate a stale
+`auditboard-dev-env/.envrc` (backup kept, FLEETCOM settings re-applied). **Midship's Hatchet (workflow engine, ports 1337/7077) is
 handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
 (brew cask), starts the local server (`hatchet server start --dashboard-port
 1337`), and copies the worker token into midship-turbo-broccoli's `.env`.

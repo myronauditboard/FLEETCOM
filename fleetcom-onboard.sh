@@ -196,11 +196,30 @@ brew services start redis >/dev/null 2>&1 || true
 launchctl kickstart -k gui/$(id -u)/homebrew.mxcl.redis 2>/dev/null || true
 
 # --- 3. dev-env .envrc override block --------------------------------------
+# A stale generated .envrc (predating current generate-config) breaks things
+# in cascading ways — no ORKES_ACCESS_TOKEN means start-background refuses to
+# run at all. Offer regeneration; keep a backup; preserve the SSO secret so
+# cascade/.env stays in sync.
+PRESERVED_SECRET=""
+if ! grep -q "^export ORKES_ACCESS_TOKEN=" "$DEVENV/.envrc" && [ -t 0 ]; then
+	say "your .envrc is STALE — it lacks ORKES_ACCESS_TOKEN, so AB background services (minio/poxa/ML/...) cannot start"
+	read -r -p "[onboard] Regenerate .envrc via generate-config now? (backup kept; FLEETCOM settings re-applied automatically) [Y/n] " RYN || true
+	case "$RYN" in
+		[Nn]*) say "skipped — expect 'abc run start-background' to fail until regenerated" ;;
+		*)
+			PRESERVED_SECRET=$(grep "^export CASCADE_JWT_SECRET=" "$DEVENV/.envrc" | cut -d"'" -f2 || true)
+			cp "$DEVENV/.envrc" "$DEVENV/.envrc.fleetcom-backup"
+			say "backup saved: $DEVENV/.envrc.fleetcom-backup"
+			(cd "$DEVENV" && CREATE_ENVRC=true abc run generate-config) \
+				|| say "WARNING: generate-config failed — restore from .envrc.fleetcom-backup if needed"
+		;;
+	esac
+fi
 if grep -q "$MARKER" "$DEVENV/.envrc"; then
 	say ".envrc override block already present"
 	SECRET=$(grep "^export CASCADE_JWT_SECRET=" "$DEVENV/.envrc" | cut -d"'" -f2)
 else
-	SECRET=$(openssl rand -hex 32)
+	SECRET=${PRESERVED_SECRET:-$(openssl rand -hex 32)}
 	cat >> "$DEVENV/.envrc" <<EOF
 
 # ============================================================================
@@ -310,6 +329,36 @@ fi
 if ! grep -qE '^EXTRACT_HOST=.+' "$CASCADE/.env"; then
 	printf 'EXTRACT_HOST=host.docker.internal:3001\n' >> "$CASCADE/.env"
 	say "cascade .env: EXTRACT_HOST -> host.docker.internal:3001 (integrations-extract)"
+fi
+
+# --- 6b. dependency installs (idempotent — heavy only on first run) ----------
+say "checking app dependencies (a first run can take several minutes)"
+if [ -d "$AB_FRONTEND_DIR" ] && [ ! -d "$AB_FRONTEND_DIR/node_modules" ]; then
+	if command -v pnpm >/dev/null; then
+		say "pnpm install in auditboard-frontend..."
+		(cd "$AB_FRONTEND_DIR" && pnpm install --config.confirmModulesPurge=false) || say "WARNING: pnpm install failed in auditboard-frontend"
+	else
+		say "WARNING: pnpm not found — skipping auditboard-frontend deps (install volta + pnpm, or run abc doctor --fix)"
+	fi
+fi
+if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ] && ! (cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && poetry run python -c '' >/dev/null 2>&1); then
+	say "poetry install in midship-turbo-broccoli..."
+	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && poetry install) || say "WARNING: poetry install failed in midship-turbo-broccoli"
+fi
+if [ -d "$MIDSHIP_FRONTEND_DIR" ] && [ ! -d "$MIDSHIP_FRONTEND_DIR/node_modules" ]; then
+	say "npm install in midship-frontend..."
+	(cd "$MIDSHIP_FRONTEND_DIR" && npm install) || say "WARNING: npm install failed in midship-frontend"
+fi
+if [ -d "$CASCADE/client" ] && [ ! -d "$CASCADE/client/node_modules" ]; then
+	if command -v volta >/dev/null; then
+		say "npm install in cascade/client (node from .nvmrc via volta)..."
+		(cd "$CASCADE/client" && volta run --node "$(cat .nvmrc)" npm install) || say "WARNING: npm install failed in cascade/client"
+	elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+		say "npm install in cascade/client (node from .nvmrc via nvm)..."
+		(cd "$CASCADE/client" && bash -lc 'source ~/.nvm/nvm.sh && nvm install >/dev/null 2>&1 && nvm use >/dev/null && npm install') || say "WARNING: npm install failed in cascade/client"
+	else
+		say "WARNING: neither volta nor nvm found — skipping cascade/client deps (brew install volta, then re-run)"
+	fi
 fi
 
 # --- 7. AB database seed (SQL dump import — DESTRUCTIVE, always confirmed) ---

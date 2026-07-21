@@ -31,6 +31,13 @@ up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	say "midship: docker services"
 	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && docker compose up -d)
+	# wopi sometimes exits while its sibling onyx keeps running — surface why
+	WOPI_ID=$(docker ps -aq --filter "name=wopi" 2>/dev/null | head -1)
+	if [ -n "$WOPI_ID" ] && [ -z "$(docker ps -q --filter 'name=wopi' 2>/dev/null)" ]; then
+		say "WARNING: wopi container is not running — last log lines, then attempting restart:"
+		docker logs --tail 5 "$WOPI_ID" 2>&1 | sed 's/^/    [wopi] /' || true
+		docker start "$WOPI_ID" >/dev/null 2>&1 || true
+	fi
 	# hatchet lives in its own compose project (hatchet-cli); restart its
 	# containers if fleetcom-stop-all.sh --midship (or a reboot) stopped them
 	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null || true)
