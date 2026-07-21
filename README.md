@@ -36,10 +36,10 @@ reference/branding work; don't build it from source on macOS.
 
 Fresh clones still need dependency setup: `abc init` for the auditboard
 repos, `poetry install` in midship-turbo-broccoli, `npm install` in
-midship-frontend. **Midship's Hatchet (workflow engine, ports 1337/7077) is a
-separate one-time setup** — follow the self-hosted Hatchet instructions in the
-midship-turbo-broccoli README; FLEETCOM restarts its containers on later boots
-but cannot create them.
+midship-frontend. **Midship's Hatchet (workflow engine, ports 1337/7077) is
+handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
+(brew cask), starts the local server (`hatchet server start --dashboard-port
+1337`), and copies the worker token into midship-turbo-broccoli's `.env`.
 
 ## Quick start
 
@@ -289,11 +289,11 @@ and recreate them in the UI.
 
 ### doctor shows Hatchet (1337 / 7077) NOT LISTENING
 
-Hatchet is Midship's self-hosted workflow engine and lives in its own compose
-project (`hatchet-cli`) that FLEETCOM doesn't create — only restarts once it
-exists. First-time setup follows the midship-turbo-broccoli README (Hatchet
-section). Until then this red is expected; Midship boots fine without it, but
-the document-processing pipeline (Hatchet workers) won't run.
+Hatchet is Midship's self-hosted workflow engine (compose project
+`hatchet-cli`). Re-run `./fleetcom-onboard.sh` — it installs the hatchet CLI,
+starts the local server on the right ports, and copies the worker token into
+midship's `.env`. Midship boots fine without it, but the document-processing
+pipeline (Hatchet workers) won't run until it's up.
 
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404

@@ -35,6 +35,8 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	# containers if fleetcom-stop-all.sh --midship (or a reboot) stopped them
 	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null || true)
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
+	docker ps -aq --filter "name=hatchet-cli" 2>/dev/null | grep -q . \
+		|| say "note: hatchet not set up — run ./fleetcom-onboard.sh to install/start it (Midship's doc-pipeline workers need it)"
 	if up 8000; then
 		say "midship API already on 8000"
 		echo "[fleetcom $(date '+%H:%M:%S')] Midship API already running on 8000 — launched outside FLEETCOM, so its output is NOT captured here. To capture: stop it, then re-run fleetcom-start-all.sh" >> "$LOGS/midship-api.log"

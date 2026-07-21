@@ -413,4 +413,34 @@ if [ -d "$MTB" ] && [ -t 0 ]; then
 	fi
 fi
 
+# --- 9. Midship Hatchet (workflow engine: dashboard 1337, gRPC 7077) --------
+# 'hatchet server start' is idempotent: creates (or verifies) the hatchet-cli
+# compose project (postgres + hatchet-lite) and a ~/.hatchet local profile.
+if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
+	if docker ps -aq --filter "name=hatchet-cli" 2>/dev/null | grep -q .; then
+		say "hatchet containers exist (fleetcom-start-all restarts them when stopped)"
+	elif [ -t 0 ]; then
+		read -r -p "[onboard] Midship's Hatchet isn't set up — install the CLI (brew cask) and start the local server now? [Y/n] " HYN || true
+		case "$HYN" in
+			[Nn]*) say "skipped — Midship boots without it, but document-pipeline workers won't run (see README: Hatchet)" ;;
+			*)
+				command -v hatchet >/dev/null || brew install --cask hatchet || die "hatchet install failed — brew install --cask hatchet, then re-run"
+				say "starting local Hatchet server (postgres + hatchet-lite containers)"
+				hatchet server start --dashboard-port 1337 || say "WARNING: hatchet server start failed — see output above"
+			;;
+		esac
+	else
+		say "WARNING: hatchet not set up and no TTY to prompt — run: brew install --cask hatchet && hatchet server start --dashboard-port 1337"
+	fi
+	# midship workers authenticate with HATCHET_CLIENT_TOKEN — copy it from the
+	# CLI's local profile into midship's .env (never printed)
+	if [ -f "$HOME/.hatchet/profiles.yaml" ] && [ -f "$MIDSHIP_TURBO_BROCCOLI_DIR/.env" ] && ! grep -q "^HATCHET_CLIENT_TOKEN=" "$MIDSHIP_TURBO_BROCCOLI_DIR/.env"; then
+		HTOK=$(awk '/^    local:$/{f=1} f && /token:/{print $2; exit}' "$HOME/.hatchet/profiles.yaml" || true)
+		if [ -n "$HTOK" ]; then
+			printf '\n# FLEETCOM: local Hatchet server token (from ~/.hatchet/profiles.yaml)\nHATCHET_CLIENT_TOKEN=%s\n' "$HTOK" >> "$MIDSHIP_TURBO_BROCCOLI_DIR/.env"
+			say "HATCHET_CLIENT_TOKEN appended to midship-turbo-broccoli/.env"
+		fi
+	fi
+fi
+
 say "done. Next: ./fleetcom-start-all.sh && ./fleetcom-doctor.sh — see README.md"
