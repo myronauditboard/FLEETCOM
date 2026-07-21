@@ -14,6 +14,16 @@ mkdir -p "$LOGS"
 OPEN_LOGS=1
 [ "${1:-}" = "--no-logs" ] && OPEN_LOGS=0
 
+# nearly everything below needs the docker daemon; launch it if it's down
+if ! docker info >/dev/null 2>&1; then
+	say "docker daemon not reachable — launching Docker Desktop"
+	open -a "Docker Desktop" 2>/dev/null || { say "ERROR: Docker Desktop not installed"; exit 1; }
+	say "waiting for the docker engine (up to ~90s)..."
+	for _i in $(seq 1 30); do sleep 3; docker info >/dev/null 2>&1 && break; done
+	docker info >/dev/null 2>&1 || { say "ERROR: docker engine did not come up — start Docker Desktop manually"; exit 1; }
+	say "docker engine is up"
+fi
+
 say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
 up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 

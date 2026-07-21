@@ -137,6 +137,16 @@ for cmd in brew docker direnv gh abc lsof; do
 done
 [ -e "$PG_CONF" ] || die "postgresql@17 not installed (no $PG_CONF) — brew install postgresql@17"
 [ -e "$REDIS_CONF" ] || die "redis not installed (no $REDIS_CONF) — brew install redis"
+# the docker BINARY existing doesn't mean the daemon is up (fresh machines
+# often have Docker Desktop installed but not launched)
+if ! docker info >/dev/null 2>&1; then
+	say "docker daemon not reachable — launching Docker Desktop"
+	open -a "Docker Desktop" 2>/dev/null || die "Docker Desktop not installed — install it, then re-run"
+	say "waiting for the docker engine (up to ~90s)..."
+	for _i in $(seq 1 30); do sleep 3; docker info >/dev/null 2>&1 && break; done
+	docker info >/dev/null 2>&1 || die "docker engine did not come up — start Docker Desktop manually, then re-run"
+	say "docker engine is up"
+fi
 docker compose version --short | awk -F. '{ exit !($1 > 2 || ($1 == 2 && $2 >= 24)) }' \
 	|| die "docker compose >= 2.24 required (for !override port merging)"
 [ -d "$DEVENV" ] || die "$DEVENV not found — re-run and accept the clone offer, or run 'abc init'"
