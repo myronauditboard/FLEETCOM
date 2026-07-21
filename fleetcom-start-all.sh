@@ -36,15 +36,25 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null || true)
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
 	if up 8000; then say "midship API already on 8000"; else
-		say "midship API -> logs/midship-api.log"
-		# --timeout-graceful-shutdown: uvicorn --reload hangs forever "waiting for
-		# background tasks" when a file change triggers a reload; cap the wait so
-		# reloads recover instead of wedging the API (port bound, nothing answering)
-		(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload --timeout-graceful-shutdown 15 > "$LOGS/midship-api.log" 2>&1 &)
+		if ! command -v poetry >/dev/null; then
+			say "WARNING: poetry not installed — SKIPPING the Midship API (install poetry, run 'poetry install' in midship-turbo-broccoli, re-run)"
+		elif ! (cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && poetry run python -c '' >/dev/null 2>&1); then
+			say "WARNING: midship-turbo-broccoli's poetry env isn't set up — SKIPPING the Midship API (run 'poetry install' there, then re-run)"
+		else
+			say "midship API -> logs/midship-api.log"
+			# --timeout-graceful-shutdown: uvicorn --reload hangs forever "waiting for
+			# background tasks" when a file change triggers a reload; cap the wait so
+			# reloads recover instead of wedging the API (port bound, nothing answering)
+			(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && ENV=local_db nohup poetry run uvicorn midship.app.main:app --reload --timeout-graceful-shutdown 15 > "$LOGS/midship-api.log" 2>&1 &)
+		fi
 	fi
 	if up 5173; then say "midship frontend already on 5173"; else
-		say "midship frontend -> logs/midship-frontend.log"
-		(cd "$MIDSHIP_FRONTEND_DIR" && nohup npm run dev > "$LOGS/midship-frontend.log" 2>&1 &)
+		if [ ! -d "$MIDSHIP_FRONTEND_DIR/node_modules" ]; then
+			say "WARNING: midship-frontend has no node_modules — SKIPPING the Midship frontend (run 'npm install' there, then re-run)"
+		else
+			say "midship frontend -> logs/midship-frontend.log"
+			(cd "$MIDSHIP_FRONTEND_DIR" && nohup npm run dev > "$LOGS/midship-frontend.log" 2>&1 &)
+		fi
 	fi
 else
 	say "WARNING: midship-turbo-broccoli not found at $MIDSHIP_TURBO_BROCCOLI_DIR — SKIPPING ALL OF MIDSHIP"

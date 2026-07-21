@@ -132,7 +132,7 @@ ML="$AB_DEVENV_DIR/machine-learning"
 [ "$CLONED" = 1 ] && say "note: fresh clones still need their dependency setup — 'abc init' covers the auditboard repos; run 'poetry install' in midship-turbo-broccoli and 'npm install' in midship-frontend; JS deps for AB/cascade install on first start"
 
 # --- prerequisites ---------------------------------------------------------
-for cmd in brew docker direnv gh abc lsof; do
+for cmd in brew docker direnv gh abc lsof poetry; do
 	command -v "$cmd" >/dev/null || die "missing prerequisite: $cmd"
 done
 [ -e "$PG_CONF" ] || die "postgresql@17 not installed (no $PG_CONF) — brew install postgresql@17"
