@@ -1,9 +1,8 @@
-# FLEETCOM: local overrides for auditboard-dev-env's
-# docker-compose-supplement-dev.yml. Services listed here are skipped in
-# start-background (-s conductor,integrations-extract) and started explicitly
-# with this file layered on (fleetcom-start-all.sh does this):
-#   docker compose -f docker-compose-supplement-dev.yml \
-#     -f ../FLEETCOM/devenv.override.yml up -d conductor integrations-extract
+# FLEETCOM: conductor port override for auditboard-dev-env's
+# docker-compose-supplement-dev.yml. Conductor is skipped in start-background
+# and started explicitly with this file layered on (fleetcom-start-all.sh);
+# integrations-extract's override lives in extract.override.yml (split so
+# older dev-env checkouts without that service still compose validly).
 services:
   # Conductor API moves off 8080 (held by Midship WOPI). CONDUCTOR_SERVER_URL
   # in .envrc points at http://localhost:18080/api. UI stays on 3000.
@@ -11,8 +10,3 @@ services:
     ports: !override
       - "18080:8080"
       - "3000:5000"
-  # Larger V8 heap — the base file's environment map is merged, not replaced,
-  # so this adds NODE_OPTIONS while keeping PORT/keys from the base file.
-  integrations-extract:
-    environment:
-      NODE_OPTIONS: "--max-old-space-size=8192"

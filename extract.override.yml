@@ -1,0 +1,9 @@
+# FLEETCOM: larger V8 heap for integrations-extract. Split from
+# devenv.override.yml because older auditboard-dev-env checkouts don't define
+# this service, and referencing an undefined service invalidates the whole
+# compose project. fleetcom-start-all.sh includes this file only when the base
+# compose has integrations-extract.
+services:
+  integrations-extract:
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=8192"

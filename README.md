@@ -173,7 +173,7 @@ locally by LaunchDevly (:8765). Extract's API docs: `localhost:3001/docs`.
 | Midship | Collabora/Onyx | 9980 | fixed (Docker) |
 | Midship | Postgres | 5432 | fixed (Docker) |
 | Midship | Redis | 6379 | fixed (Docker) |
-| Midship | Hatchet | 1337, 7077 | fixed (Docker) |
+| Midship | Hatchet | 1337, 7077 | fixed (Docker) — set up separately per midship-turbo-broccoli README; FLEETCOM restarts existing containers but cannot create them |
 | Midship | debugpy (opt-in) | 5678–5681, 8090 | fixed |
 | AuditBoard | API v1 (Hapi) | 9001 | unchanged — Cascade hardcodes it |
 | AuditBoard | Caddy HTTPS entry | 9002 | unchanged |

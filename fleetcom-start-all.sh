@@ -67,10 +67,39 @@ ensure_native() { # port, brew service name
 ensure_native 5433 postgresql@17
 ensure_native 6382 redis
 
-say "AB background services (conductor + integrations-extract start separately with local overrides)"
-(cd "$DEVENV" && abc run start-background -- -s conductor,integrations-extract)
-(cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
-	-f "$HERE/devenv.override.yml" up -d conductor integrations-extract)
+# integrations-extract only exists in newer dev-env checkouts — referencing an
+# undefined service invalidates the whole compose project, so detect it first
+SKIP="conductor"; UP_SERVICES=(conductor); UP_FILES=(-f docker-compose-supplement-dev.yml -f "$HERE/devenv.override.yml")
+if (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml config --services 2>/dev/null | grep -qx integrations-extract); then
+	SKIP="conductor,integrations-extract"
+	UP_SERVICES+=(integrations-extract)
+	UP_FILES+=(-f "$HERE/extract.override.yml")
+else
+	say "WARNING: no integrations-extract service in auditboard-dev-env — checkout outdated? (git -C $DEVENV pull, then abc run start-background)"
+fi
+say "AB background services ($SKIP start separately with local overrides)"
+(cd "$DEVENV" && abc run start-background -- -s "$SKIP")
+(cd "$DEVENV" && direnv exec . docker compose "${UP_FILES[@]}" up -d "${UP_SERVICES[@]}") \
+	|| say "WARNING: conductor/extract startup failed (see above) — continuing with the rest of the boot"
+
+# machine-learning is cloned by start-background itself, so on a machine
+# onboarded before its first boot the ML port override doesn't exist yet —
+# without it ML grabs 8000 and collides with the Midship API
+if [ -d "$ML_DIR" ] && ! grep -q '"8004:8000"' "$ML_DIR/docker-compose.override.yml" 2>/dev/null; then
+	say "applying ML port override (host 8004) — machine-learning was cloned after onboarding"
+	if grep -q "ab_mlservice_local:" "$ML_DIR/docker-compose.override.yml" 2>/dev/null; then
+		awk '1; /^  ab_mlservice_local:$/ {
+			print "    # FLEETCOM: host port moves off 8000 (held by Midship FastAPI)."
+			print "    ports: !override"
+			print "      - \"8004:8000\""
+		}' "$ML_DIR/docker-compose.override.yml" > "$ML_DIR/docker-compose.override.yml.tmp" \
+			&& mv "$ML_DIR/docker-compose.override.yml.tmp" "$ML_DIR/docker-compose.override.yml"
+	else
+		printf 'services:\n  ab_mlservice_local:\n    # FLEETCOM: host port moves off 8000.\n    ports: !override\n      - "8004:8000"\n' \
+			> "$ML_DIR/docker-compose.override.yml"
+	fi
+	(cd "$ML_DIR" && docker compose up -d ab_mlservice_local) || say "WARNING: could not recreate ab_mlservice_local with the new port"
+fi
 
 if up 9001; then say "AB API already on 9001"; else
 	# The API must run under a pty: turbo watch only kills the old api:v2

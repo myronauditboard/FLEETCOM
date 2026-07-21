@@ -42,7 +42,9 @@ kill_port 9001; kill_port 9003                     # api v1/v2 (turbo children f
 # 'docker compose stop' silently no-ops — stop the ML project ourselves
 [ -d "$ML_DIR" ] && (cd "$ML_DIR" && docker compose stop 2>/dev/null) && say "machine-learning stopped"
 (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
-	-f "$HERE/devenv.override.yml" down conductor integrations-extract 2>/dev/null) || true
+	-f "$HERE/devenv.override.yml" -f "$HERE/extract.override.yml" down conductor integrations-extract 2>/dev/null) \
+	|| (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
+	-f "$HERE/devenv.override.yml" down conductor 2>/dev/null) || true
 brew services stop postgresql@17 >/dev/null 2>&1
 brew services stop redis >/dev/null 2>&1
 
