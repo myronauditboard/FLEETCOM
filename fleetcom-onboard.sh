@@ -8,8 +8,10 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/paths.sh"
 MARKER="FLEETCOM"
-PG_CONF=/opt/homebrew/var/postgresql@17/postgresql.conf
-REDIS_CONF=/opt/homebrew/etc/redis.conf
+# derive the Homebrew prefix — /opt/homebrew on Apple Silicon, /usr/local on Intel
+BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
+PG_CONF="$BREW_PREFIX/var/postgresql@17/postgresql.conf"
+REDIS_CONF="$BREW_PREFIX/etc/redis.conf"
 
 say() { printf '\033[36m[onboard]\033[0m %s\n' "$*"; }
 die() { printf '\033[31m[onboard] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -129,7 +131,7 @@ ensure_repo AB_DEVENV_DIR              auditboard-dev-env
 DEVENV="$AB_DEVENV_DIR"
 CASCADE="$CASCADE_DIR"
 ML="$AB_DEVENV_DIR/machine-learning"
-[ "$CLONED" = 1 ] && say "note: fresh clones still need their dependency setup — 'abc init' covers the auditboard repos; run 'poetry install' in midship-turbo-broccoli and 'npm install' in midship-frontend; JS deps for AB/cascade install on first start"
+[ "$CLONED" = 1 ] && say "note: fresh clones get their dependency installs later in this run ('checking app dependencies' step)"
 
 # --- prerequisites ---------------------------------------------------------
 for cmd in brew docker direnv gh abc lsof poetry; do
@@ -137,6 +139,7 @@ for cmd in brew docker direnv gh abc lsof poetry; do
 done
 [ -e "$PG_CONF" ] || die "postgresql@17 not installed (no $PG_CONF) — brew install postgresql@17"
 [ -e "$REDIS_CONF" ] || die "redis not installed (no $REDIS_CONF) — brew install redis"
+gh auth status >/dev/null 2>&1 || say "WARNING: gh is not authenticated (run: gh auth login) — repo cloning will fail until you do"
 # the docker BINARY existing doesn't mean the daemon is up (fresh machines
 # often have Docker Desktop installed but not launched)
 if ! docker info >/dev/null 2>&1; then
@@ -160,7 +163,8 @@ DOCKER_SETTINGS="$HOME/Library/Group Containers/group.com.docker/settings-store.
 WANT_MEM_MIB=12288 WANT_DISK_MIB=122880
 if [ -f "$DOCKER_SETTINGS" ] && ! python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); sys.exit(0 if s.get("MemoryMiB",0)>=int(sys.argv[2]) and s.get("DiskSizeMiB",0)>=int(sys.argv[3]) else 1)' "$DOCKER_SETTINGS" "$WANT_MEM_MIB" "$WANT_DISK_MIB"; then
 	say "Docker Desktop is below ${WANT_MEM_MIB}MiB memory / ${WANT_DISK_MIB}MiB disk"
-	read -r -p "[onboard] Restart Docker Desktop now to apply? ALL running containers stop; re-run fleetcom-start-all.sh after. [y/N] " yn
+	yn=n
+	[ -t 0 ] && { read -r -p "[onboard] Restart Docker Desktop now to apply? ALL running containers stop; re-run fleetcom-start-all.sh after. [y/N] " yn || true; }
 	if [[ "$yn" =~ ^[Yy]$ ]]; then
 		osascript -e 'quit app "Docker Desktop"' 2>/dev/null || true
 		sleep 10
@@ -346,8 +350,12 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ] && ! (cd "$MIDSHIP_TURBO_BROCCOLI_DIR" &
 	(cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && poetry install) || say "WARNING: poetry install failed in midship-turbo-broccoli"
 fi
 if [ -d "$MIDSHIP_FRONTEND_DIR" ] && [ ! -d "$MIDSHIP_FRONTEND_DIR/node_modules" ]; then
-	say "npm install in midship-frontend..."
-	(cd "$MIDSHIP_FRONTEND_DIR" && npm install) || say "WARNING: npm install failed in midship-frontend"
+	if command -v npm >/dev/null; then
+		say "npm install in midship-frontend..."
+		(cd "$MIDSHIP_FRONTEND_DIR" && npm install) || say "WARNING: npm install failed in midship-frontend"
+	else
+		say "WARNING: npm not found — skipping midship-frontend deps (install volta, then 'volta install node', then re-run)"
+	fi
 fi
 if [ -d "$CASCADE/client" ] && [ ! -d "$CASCADE/client/node_modules" ]; then
 	if command -v volta >/dev/null; then
@@ -473,7 +481,13 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 		case "$HYN" in
 			[Nn]*) say "skipped — Midship boots without it, but document-pipeline workers won't run (see README: Hatchet)" ;;
 			*)
-				command -v hatchet >/dev/null || brew install --cask hatchet || die "hatchet install failed — brew install --cask hatchet, then re-run"
+				if ! command -v hatchet >/dev/null; then
+					say "installing hatchet CLI (from the hatchet-dev/hatchet tap)"
+					brew tap hatchet-dev/hatchet >/dev/null 2>&1 || true
+					brew trust hatchet-dev/hatchet >/dev/null 2>&1 || true  # newer brew requires trusting third-party taps
+					brew install --cask hatchet-dev/hatchet/hatchet \
+						|| die "hatchet install failed — try: brew tap hatchet-dev/hatchet && brew trust hatchet-dev/hatchet && brew install --cask hatchet-dev/hatchet/hatchet"
+				fi
 				say "starting local Hatchet server (postgres + hatchet-lite containers)"
 				hatchet server start --dashboard-port 1337 || say "WARNING: hatchet server start failed — see output above"
 			;;

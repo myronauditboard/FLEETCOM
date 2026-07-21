@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # FLEETCOM/paths.sh — repo locations, sourced by every script.
 # Defaults put every repo under ~/Development; local.conf (written by
 # fleetcom-onboard.sh's prompt, gitignored, per-machine) overrides them.
