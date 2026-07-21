@@ -35,7 +35,10 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	# containers if fleetcom-stop-all.sh --midship (or a reboot) stopped them
 	HATCHET_STOPPED=$(docker ps -aq --filter "name=hatchet-cli" --filter "status=exited" 2>/dev/null || true)
 	[ -n "$HATCHET_STOPPED" ] && docker start $HATCHET_STOPPED >/dev/null && say "restarted hatchet containers"
-	if up 8000; then say "midship API already on 8000"; else
+	if up 8000; then
+		say "midship API already on 8000"
+		echo "[fleetcom $(date '+%H:%M:%S')] Midship API already running on 8000 — launched outside FLEETCOM, so its output is NOT captured here. To capture: stop it, then re-run fleetcom-start-all.sh" >> "$LOGS/midship-api.log"
+	else
 		if ! command -v poetry >/dev/null; then
 			say "WARNING: poetry not installed — SKIPPING the Midship API (install poetry, run 'poetry install' in midship-turbo-broccoli, re-run)"
 		elif ! (cd "$MIDSHIP_TURBO_BROCCOLI_DIR" && poetry run python -c '' >/dev/null 2>&1); then
@@ -111,7 +114,10 @@ if [ -d "$ML_DIR" ] && ! grep -q '"8004:8000"' "$ML_DIR/docker-compose.override.
 	(cd "$ML_DIR" && docker compose up -d ab_mlservice_local) || say "WARNING: could not recreate ab_mlservice_local with the new port"
 fi
 
-if up 9001; then say "AB API already on 9001"; else
+if up 9001; then
+	say "AB API already on 9001"
+	echo "[fleetcom $(date '+%H:%M:%S')] AB API already running on 9001 — if it was launched outside FLEETCOM its output is NOT captured here. To capture: stop it, then re-run fleetcom-start-all.sh" >> "$LOGS/ab-api.log"
+else
 	# The API must run under a pty: turbo watch only kills the old api:v2
 	# process on rebuild-restart when it has a controlling terminal. A nohup
 	# launch leaks the old process -> EADDRINUSE -> v2 serves stale code.
