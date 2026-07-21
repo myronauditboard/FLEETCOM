@@ -135,6 +135,31 @@ run migrations on top of whatever is already in the database.
   active connections — `fleetcom-onboard.sh` stops the Midship API first; bring it back
   afterwards with `./fleetcom-start-all.sh`.
 
+## Automations / Analytics (Cascade) in AuditBoard
+
+The AB Automations module (workspace → Automations) is powered by Cascade plus
+the `integrations-extract` side service. FLEETCOM handles the plumbing:
+
+- `fleetcom-onboard.sh` backfills the credential-encryption keys into
+  `.envrc` when it predates the key rotation (see Troubleshooting: "Invalid
+  key length"), and sets `EXTRACT_HOST` in `cascade/.env` so Cascade can reach
+  integrations-extract.
+- `fleetcom-start-all.sh` already boots in the required order — extract (with
+  the AB background services) **before** Cascade — so Cascade's manager can
+  initialize its ExtractClient. After onboard adds `EXTRACT_HOST`, the next
+  start-all recreates Cascade's containers with it automatically.
+
+**One-time manual step — app state, not env config**: log into AB → Settings →
+Site Configuration → **Insider Access** → toggle **Automation** → select
+**"Auditboard Analytics"**. This lives in the AB *database*, so re-check it
+after every `demo_data` reseed (dumps may or may not include it). It cannot be
+scripted safely from outside the app.
+
+**Optional — Merge.dev connectors** (Paylocity etc.): `MERGE_API_KEY`
+(1Password) in `.envrc`, plus LaunchDarkly flags `merge-dev-integrations`,
+`integrations-extract-service-enabled`, and `show-all-integrations` — served
+locally by LaunchDevly (:8765). Extract's API docs: `localhost:3001/docs`.
+
 ## Port map
 
 | Stack | Service | Port | Notes |
@@ -235,6 +260,18 @@ are clean. `tmux attach -t fleetcom-ab-api` shows the raw process if you ever
 want it. If you see this error anyway, the API was probably started by hand
 with `nohup`/backgrounding — bounce it: kill whatever holds 9001/9003 and
 re-run `./fleetcom-start-all.sh`.
+
+### Automations page: "an error occurred while decrypting: RangeError: Invalid key length"
+
+**Cause**: your generated `.envrc` predates the credential-encryption key
+rotation (SOX-88587) and lacks `SHARED_EXTERNAL_ENCRYPTION_KEY` /
+`EXTERNAL_SECRET_ENCRYPTION_KEY` — the backend decrypts stored automation
+credentials with an empty key. **Fix**: re-run `./fleetcom-onboard.sh` (it
+backfills both from `bin/generate-config`), then restart the AB API and
+recreate `integrations-extract` so both pick up the keys. If a *different*
+decrypt error appears afterwards ("bad decrypt"), the seeded credentials were
+encrypted with a non-standard key — delete those automation-credential rows
+and recreate them in the UI.
 
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404

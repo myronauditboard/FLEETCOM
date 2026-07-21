@@ -207,6 +207,19 @@ export CASCADE_JWT_SECRET='${SECRET}'
 EOF
 	say ".envrc override block appended (new shared JWT secret generated)"
 fi
+# Older generated .envrc files predate the SOX-88587 key rotation and lack the
+# credential-encryption keys — symptom: the AB Automations/Workflows page fails
+# with "RangeError: Invalid key length". Backfill them from generate-config.
+for key in SHARED_EXTERNAL_ENCRYPTION_KEY EXTERNAL_SECRET_ENCRYPTION_KEY; do
+	if ! grep -q "^export $key=" "$DEVENV/.envrc"; then
+		if grep -q "^export $key=" "$DEVENV/bin/generate-config"; then
+			say "your .envrc predates current generate-config — backfilling $key from it"
+			grep "^export $key=" "$DEVENV/bin/generate-config" | head -1 >> "$DEVENV/.envrc"
+		else
+			say "WARNING: $key missing from both .envrc and bin/generate-config — Automations credential decryption will fail (RangeError: Invalid key length)"
+		fi
+	fi
+done
 (cd "$DEVENV" && direnv allow)
 
 # --- 4. Cascade docker-compose.override.yml ---------------------------------
@@ -276,6 +289,15 @@ AB_DOMAINS=localhost:9002
 AB_LOGIN_URL=https://localhost:9002/login
 EOF
 	say "cascade .env SSO block appended"
+fi
+# Point cascade at the integrations-extract side service (Automations /
+# "Import from Integrations"). Cascade's manager initializes its ExtractClient
+# at container boot — fleetcom-start-all boots extract (AB background services)
+# before cascade, and the .env change makes compose recreate cascade's
+# containers on the next up, so the ordering is handled automatically.
+if ! grep -qE '^EXTRACT_HOST=.+' "$CASCADE/.env"; then
+	printf 'EXTRACT_HOST=host.docker.internal:3001\n' >> "$CASCADE/.env"
+	say "cascade .env: EXTRACT_HOST -> host.docker.internal:3001 (integrations-extract)"
 fi
 
 # --- 7. AB database seed (SQL dump import — DESTRUCTIVE, always confirmed) ---
