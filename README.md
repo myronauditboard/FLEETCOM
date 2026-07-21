@@ -150,10 +150,12 @@ the `integrations-extract` side service. FLEETCOM handles the plumbing:
   start-all recreates Cascade's containers with it automatically.
 
 **One-time manual step — app state, not env config**: log into AB → Settings →
-Site Configuration → **Insider Access** → toggle **Automation** → select
-**"Auditboard Analytics"**. This lives in the AB *database*, so re-check it
-after every `demo_data` reseed (dumps may or may not include it). It cannot be
-scripted safely from outside the app.
+Site Configuration → **Features** (Superuser group) → scroll to the
+**Automation** heading → enable **Analytics** (the older Coda guide says
+Insider Access → "Auditboard Analytics"; that toggle has moved to Features).
+This lives in the AB *database*, so re-check it after every `demo_data` reseed
+(dumps may or may not include it). It cannot be scripted safely from outside
+the app.
 
 **Optional — Merge.dev connectors** (Paylocity etc.): `MERGE_API_KEY`
 (1Password) in `.envrc`, plus LaunchDarkly flags `merge-dev-integrations`,
@@ -264,9 +266,9 @@ re-run `./fleetcom-start-all.sh`.
 ### Workflows page is empty / shows "Install and configure services from the new Integrations module"
 
 The Analytics service isn't enabled for this AB site. Enable it in the app:
-Settings → Site Configuration → **Insider Access** → toggle **Automation** →
-select **"Auditboard Analytics"** (details in the "Automations / Analytics"
-section above). This is stored in the AB database — it can silently disappear
+Settings → Site Configuration → **Features** (Superuser group) → **Automation**
+heading → enable **Analytics** (details in the "Automations / Analytics"
+section above; older docs point at Insider Access — the toggle moved). This is stored in the AB database — it can silently disappear
 after a `demo_data` reseed, so re-check it there first whenever the
 Automations module looks unconfigured.
 
