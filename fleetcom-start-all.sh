@@ -43,8 +43,19 @@ fi
 
 # --- AuditBoard --------------------------------------------------------------
 say "AB native databases (postgres 5433, redis 6382)"
-up 5433 || launchctl kickstart gui/$(id -u)/homebrew.mxcl.postgresql@17
-up 6382 || launchctl kickstart gui/$(id -u)/homebrew.mxcl.redis
+ensure_native() { # port, brew service name
+	up "$1" && return 0
+	# brew services start both loads the LaunchAgent and starts it — required on
+	# machines where the service was never started (bare launchctl kickstart
+	# fails there with "Could not find service ... 502")
+	brew services start "$2" >/dev/null 2>&1 || true
+	launchctl kickstart "gui/$(id -u)/homebrew.mxcl.$2" 2>/dev/null || true
+	local i; for i in 1 2 3 4 5; do sleep 2; up "$1" && return 0; done
+	say "WARNING: $2 is not listening on port $1 — is it installed and configured?"
+	say "         brew install $2   then re-run ./fleetcom-onboard.sh (it moves the port), then this script"
+}
+ensure_native 5433 postgresql@17
+ensure_native 6382 redis
 
 say "AB background services (conductor + integrations-extract start separately with local overrides)"
 (cd "$DEVENV" && abc run start-background -- -s conductor,integrations-extract)

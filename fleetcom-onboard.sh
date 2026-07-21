@@ -135,6 +135,8 @@ ML="$AB_DEVENV_DIR/machine-learning"
 for cmd in brew docker direnv gh abc lsof; do
 	command -v "$cmd" >/dev/null || die "missing prerequisite: $cmd"
 done
+[ -e "$PG_CONF" ] || die "postgresql@17 not installed (no $PG_CONF) — brew install postgresql@17"
+[ -e "$REDIS_CONF" ] || die "redis not installed (no $REDIS_CONF) — brew install redis"
 docker compose version --short | awk -F. '{ exit !($1 > 2 || ($1 == 2 && $2 >= 24)) }' \
 	|| die "docker compose >= 2.24 required (for !override port merging)"
 [ -d "$DEVENV" ] || die "$DEVENV not found — re-run and accept the clone offer, or run 'abc init'"
