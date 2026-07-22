@@ -79,6 +79,30 @@ enabled. `fleetcom-stop-all.sh` closes the session automatically. The client
 logs (`ab-client.log`, `midship-frontend.log`, `cascade-client.log`) also live
 in `FLEETCOM/logs/` for manual tailing.
 
+## Using your own start commands (start-all is optional)
+
+Onboarding changes *machine state* — ports, env files, secrets, dependencies —
+not how you launch things. After `fleetcom-onboard.sh` you can run every stack
+the way its own README describes, and `fleetcom-doctor.sh` / `fleetcom-logs.sh`
+/ `fleetcom-stop-all.sh` still work (they operate on ports and containers, not
+on how services were started). Two caveats:
+
+- **Conductor (AB)**: native `abc run start-background` starts it on **8080**,
+  which collides with Midship's WOPI and mismatches `.envrc`'s
+  `CONDUCTOR_SERVER_URL` (18080). Native-compatible form:
+  `abc run start-background -- -s conductor`, then
+  `docker compose -f docker-compose-supplement-dev.yml -f ../FLEETCOM/devenv.override.yml up -d conductor`.
+- **Cascade's server image**: the compose override pins locally-built
+  `local_test_web:latest`, so build it once
+  (`docker-compose -f docker-compose.yml -f docker-compose-build.yml build`)
+  before a purely native `docker-compose up`. The port overrides themselves
+  need nothing special — plain `docker-compose up` auto-loads
+  `docker-compose.override.yml`.
+
+Also fine to mix: e.g. run the AB API in your own terminal (better turbo TUI
+experience) while FLEETCOM manages everything else — the log pane will note
+that its output isn't captured.
+
 ## Database seeding
 
 Two stacks have dump-based seeding, with **different conventions** — don't mix
