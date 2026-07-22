@@ -57,6 +57,7 @@ handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
 ./fleetcom-logs.sh        # live backend log panes + error alerts (auto-opens after start-all)
 ./fleetcom-restart-all.sh # full bounce of everything, Midship included
 ./fleetcom-stop-all.sh    # stops Cascade + AuditBoard (--midship to also stop Midship)
+./fleetcom-start-claude.sh # full restart + a Claude Code pane beside the logs (see below)
 ```
 
 Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
@@ -87,6 +88,31 @@ mode: each stream opens as an Apple Terminal window (generated
 stops its tail, and windows mode is also the automatic fallback when tmux
 isn't installed. The client logs (`ab-client.log`, `midship-frontend.log`,
 `cascade-client.log`) also live in `FLEETCOM/logs/` for manual tailing.
+Ctrl-C in any pane stops that stream and drops you into a shell already `cd`'d
+into that stack's repo (optro-api → auditboard-backend, midship-api →
+midship-turbo-broccoli, cascade → cascade, alerts → FLEETCOM); `exit` closes
+the pane.
+
+## Debugging with Claude beside the logs
+
+`./fleetcom-start-claude.sh` does a full restart (`stop-all` then `start-all`)
+and then adds a **Claude Code pane** to the tmux log window — Claude on the
+left (~70% width), the four log streams tiled in a strip on the right, all in
+one window. It writes `logs/tmux-panes.md` (a map of which pane shows what) and
+launches Claude pointed at it, so Claude reads log output **on demand** with
+`tmux capture-pane` rather than tailing continuously (which would bloat its
+context). Pair it with the `fleetcom-doctor` skill — that Claude session, run
+inside this repo, auto-loads the skill's diagnose-and-self-heal playbook.
+
+- Requires the **`claude` CLI** and **tmux** on `PATH`.
+- Always uses the tmux log view for this run (it needs a pane for Claude);
+  your saved `LOGS_VIEW` in `local.conf` is left untouched.
+- `--midship` also stops/restarts Midship (forwarded to stop/start-all).
+- `--no-restart` skips the stop/start and just adds the Claude pane to a
+  running (or freshly built) log session — use it when the stack is already up.
+- **Run it from a separate terminal window**, not from inside the
+  `fleetcom-logs` tmux session — the restart tears that session down, and the
+  script refuses to run from within it.
 
 ## Using your own start commands (start-all is optional)
 

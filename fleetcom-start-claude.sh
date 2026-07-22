@@ -1,0 +1,127 @@
+#!/bin/bash
+# FLEETCOM: full restart (fleetcom-stop-all.sh then fleetcom-start-all.sh),
+# plus a large Claude Code pane added to the tmux 'backends' window, alongside
+# (not hidden behind) the 4 log panes — Claude gets ~70% width, logs are
+# squeezed into a strip on the right. Claude pulls logs on demand
+# (tmux capture-pane) rather than tailing continuously.
+#   fleetcom-start-claude.sh              stop + boot + add claude pane
+#   fleetcom-start-claude.sh --midship    also stop/restart midship
+#   fleetcom-start-claude.sh --no-restart  skip stop/start; just add the claude
+#                                          pane to a running (or freshly built)
+#                                          tmux log session
+# Requires tmux and the claude CLI. This script always uses the tmux log view,
+# regardless of the LOGS_VIEW saved in local.conf — it forces it via an env
+# override (fleetcom-logs.sh honors an explicit LOGS_VIEW env over local.conf),
+# and does NOT persist the choice.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/paths.sh"
+LOGS="$HERE/logs"
+SESSION="fleetcom-logs"
+MAP="$LOGS/tmux-panes.md"
+
+say() { printf '\033[36m[start-claude]\033[0m %s\n' "$*"; }
+
+command -v claude >/dev/null || { say "ERROR: claude CLI not found on PATH"; exit 1; }
+command -v tmux   >/dev/null || { say "ERROR: tmux not found — this script requires the tmux log view (brew install tmux)"; exit 1; }
+
+# Don't run from inside the log session we're about to tear down: the restart
+# kills the 'fleetcom-logs' tmux session, which would pull the rug out from
+# under this very script (dead pty -> writes fail under set -e). Run it from a
+# separate terminal window instead. (This is cleaner than trapping SIGHUP and
+# hoping subsequent output still lands somewhere.)
+if [ -n "${TMUX:-}" ] && [ "$(tmux display-message -p '#S' 2>/dev/null)" = "$SESSION" ]; then
+	say "ERROR: don't run this from inside the '$SESSION' tmux session — it gets torn down during the restart."
+	say "       Detach (Ctrl-b d) or open a separate terminal window, then re-run."
+	exit 1
+fi
+
+# --- arg parsing: --no-restart is ours; everything else forwards to stop/start
+RESTART=1
+FWD=()
+for a in "$@"; do
+	case "$a" in
+		--no-restart) RESTART=0 ;;
+		*) FWD+=("$a") ;;
+	esac
+done
+
+if [ "$RESTART" = 1 ]; then
+	# full restart: stop everything first (forward args so --midship still works),
+	# then boot everything the normal way; skip start-all's own log-opening step
+	# so we can build the tmux session ourselves and add the claude pane before
+	# attaching. FLEETCOM_NONINTERACTIVE stops stop-all's log-window teardown from
+	# popping a blocking confirmation dialog mid-restart (the tmux session is
+	# still killed so we can rebuild it; we re-attach the same terminal at the end).
+	say "stopping everything first"
+	FLEETCOM_NONINTERACTIVE=1 "$HERE/fleetcom-stop-all.sh" ${FWD[@]+"${FWD[@]}"} \
+		|| say "stop-all exited non-zero — continuing to start-all anyway"
+	say "starting everything"
+	"$HERE/fleetcom-start-all.sh" --no-logs ${FWD[@]+"${FWD[@]}"}
+else
+	say "--no-restart: skipping stop/start, just (re)building the log session + claude pane"
+fi
+
+say "building tmux log session"
+LOGS_VIEW=tmux "$HERE/fleetcom-logs.sh" < /dev/null
+
+# --- claude pane -----------------------------------------------------------
+# Lives in the same window as the 4 log panes (not a separate window you have
+# to switch to). main-vertical layout: pane index 0 is the big "main" pane on
+# the left (claude, 70% width), the rest tile in a strip on the right.
+WINDOW="$SESSION:backends"
+PANE_COUNT=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}' | wc -l | tr -d ' ')
+CLAUDE_PANE_IS_NEW=false
+if [ "$PANE_COUNT" -lt 5 ]; then
+	say "adding claude pane -> $WINDOW"
+	CLAUDE_PANE=$(tmux split-window -t "$WINDOW" -c "$HERE" -P -F '#{pane_id}')
+	FIRST_PANE=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}' | head -1)
+	# swap-pane moves the pane_id (and its content) together, not content-in-place —
+	# so CLAUDE_PANE still identifies the claude pane after this, unchanged.
+	if [ "$CLAUDE_PANE" != "$FIRST_PANE" ]; then
+		tmux swap-pane -s "$CLAUDE_PANE" -t "$FIRST_PANE"
+	fi
+	tmux select-pane -t "$CLAUDE_PANE" -T "claude"
+	tmux set-window-option -t "$WINDOW" main-pane-width 70%
+	tmux select-layout -t "$WINDOW" main-vertical
+	CLAUDE_PANE_IS_NEW=true
+else
+	say "claude pane already present — reusing it (not re-launching claude)"
+	CLAUDE_PANE=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}:#{pane_title}' | awk -F: '$2=="claude"{print $1; exit}')
+fi
+
+# --- pane map: what each tmux pane exposes, for claude to read on startup ---
+{
+	printf '# FLEETCOM tmux pane map (generated %s)\n\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+	printf 'Pull a pane snapshot on demand — do not tail continuously:\n'
+	printf '  tmux capture-pane -p -t <pane_id> -S -   (full scrollback)\n'
+	printf '  tmux capture-pane -p -t <pane_id>        (visible screen only)\n\n'
+	printf '## session: %s, window: backends (shares this window with the claude pane)\n' "$SESSION"
+	tmux list-panes -t "$WINDOW" -F '- #{pane_id}  #{pane_title}' 2>/dev/null | grep -v '  claude$' || true
+	printf '\n'
+	if tmux has-session -t fleetcom-ab-api 2>/dev/null; then
+		printf '## session: fleetcom-ab-api\n'
+		tmux list-panes -t fleetcom-ab-api -F '- #{pane_id}  AB API (migrations + api/worker/cron)' 2>/dev/null || true
+		printf '\n'
+	fi
+	printf '## log files (read directly, no tmux needed)\n'
+	printf -- '- %s/ab-api.log\n' "$LOGS"
+	printf -- '- %s/midship-api.log\n' "$LOGS"
+	printf -- '- %s/midship-frontend.log\n' "$LOGS"
+	printf -- '- %s/ab-client.log\n' "$LOGS"
+	printf -- '- %s/cascade-client.log\n' "$LOGS"
+	printf '\n(cascade web/ws/c3/c3manager have no log file — read via the "cascade" pane above,\nor: docker compose -f docker-compose.yml -f docker-compose-build.yml -f docker-compose.override.yml logs --tail 200 web)\n'
+} > "$MAP"
+say "pane map -> $MAP"
+
+if [ "$CLAUDE_PANE_IS_NEW" = true ]; then
+	CLAUDE_PROMPT="Read $MAP for the FLEETCOM tmux session/pane layout. Pull pane output on demand with tmux capture-pane -p -t <pane_id> instead of tailing continuously."
+	tmux send-keys -t "$CLAUDE_PANE" "cd '$HERE' && claude \"$CLAUDE_PROMPT\"" C-m
+fi
+
+say "done — attach with: tmux attach -t $SESSION  (claude pane + log strip are both in the 'backends' window)"
+if [ -t 0 ]; then
+	printf '\033]0;%s\007' "$SESSION"   # window title, so a later fleetcom-stop-all can find/close it
+	if [ -n "${TMUX:-}" ]; then tmux switch-client -t "$WINDOW"; else exec tmux attach -t "$WINDOW"; fi
+fi

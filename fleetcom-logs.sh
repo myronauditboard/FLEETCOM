@@ -9,6 +9,11 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# Capture an explicit env LOGS_VIEW BEFORE sourcing paths.sh — paths.sh sources
+# local.conf, which assigns LOGS_VIEW and would otherwise clobber a caller's
+# `LOGS_VIEW=tmux fleetcom-logs.sh` override (fleetcom-start-claude.sh relies on
+# this to force tmux without persisting the choice to local.conf).
+_ENV_LOGS_VIEW="${LOGS_VIEW:-}"
 . "$HERE/paths.sh"
 LOGS="$HERE/logs"
 SESSION="fleetcom-logs"
@@ -34,6 +39,12 @@ say() { printf '\033[36m[logs]\033[0m %s\n' "$*"; }
 # Skip entirely if Terminal.app isn't running, or if none of the windows are
 # actually open.
 close_terminal_windows() {
+	# FLEETCOM_NONINTERACTIVE: automated callers (e.g. fleetcom-start-claude.sh's
+	# full restart) set this so we DON'T pop a blocking GUI dialog mid-flow. The
+	# tmux session is already killed by the --kill path before this runs; skipping
+	# here just leaves any Terminal windows for the user to close, rather than
+	# hanging on a confirmation that no one is watching for.
+	[ -n "${FLEETCOM_NONINTERACTIVE:-}" ] && return 0
 	pgrep -xq Terminal || return 0
 	local filter="" t label matched present=()
 	for t in "$@"; do
@@ -67,7 +78,7 @@ save_mode() { # persist LOGS_VIEW in local.conf
 	fi
 }
 
-MODE="${LOGS_VIEW:-}"
+MODE="${_ENV_LOGS_VIEW:-${LOGS_VIEW:-}}"   # env override wins over local.conf's saved value
 case "${1:-}" in
 	--tmux)    MODE=tmux;    save_mode tmux;    say "log view set to tmux (saved to local.conf)" ;;
 	--windows) MODE=windows; save_mode windows; say "log view set to separate windows (saved to local.conf)" ;;
