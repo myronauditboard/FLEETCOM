@@ -17,31 +17,46 @@ CASCADE_COMPOSE="docker-compose -f docker-compose.yml -f docker-compose-build.ym
 say() { printf '\033[36m[logs]\033[0m %s\n' "$*"; }
 
 # Close any spawned Terminal.app windows: the tmux grid's outer window
-# (titled "$SESSION") and/or the four separate-window titles. Killing the
-# tmux session alone doesn't close the window that was attached to it
-# (depends on Terminal's "when the shell exits" preference). Matches on the
-# exact win-<name>.command filename Terminal shows for the running script,
-# NOT the bare label — a bare label like "cascade" or "optro-api" can
-# collide with an unrelated window/tab you've named that yourself. Terminal
-# shows its own "still running — terminate?" confirmation per window when
-# closed this way; you'll need to click through it for each one (confirmed
-# acceptable — there's no way to auto-dismiss it without granting
-# Accessibility/UI-scripting access, which this doesn't ask for). Skip
-# entirely if Terminal.app isn't even running, so we don't launch it just to
-# find nothing.
+# (titled "$SESSION") and/or the four separate-window titles. Each arg is a
+# window-name substring to match — the exact win-<name>.command filename
+# Terminal shows for the running script, NOT the bare label ("cascade",
+# "optro-api"), which could collide with an unrelated window/tab you named
+# yourself.
+#
+# We show our OWN confirmation naming the windows first, because Terminal's
+# own close sheet lists running *process* names ("tail", "grep"), never the
+# window title — and its text can't be customized. After you confirm here,
+# Terminal still shows that per-window sheet (unavoidable without granting
+# Accessibility/UI-scripting access, which this doesn't ask for); this dialog
+# just tells you up front which windows are in scope. Labels are derived from
+# the match terms (which we control), not parsed from Terminal's generated
+# window names (whose em-dash separators don't survive macOS sed reliably).
+# Skip entirely if Terminal.app isn't running, or if none of the windows are
+# actually open.
 close_terminal_windows() {
 	pgrep -xq Terminal || return 0
-	local filter="" t
+	local filter="" t label matched present=()
 	for t in "$@"; do
 		filter="${filter:+$filter or }name contains \"$t\""
+		matched=$(osascript -e "tell application \"Terminal\" to get (count of (every window whose name contains \"$t\"))" 2>/dev/null)
+		case "$matched" in ''|*[!0-9]*) matched=0 ;; esac
+		if [ "$matched" -gt 0 ]; then
+			label="${t#win-}"; label="${label%.command}"
+			[ "$label" = "$SESSION" ] && label="log grid ($SESSION)"
+			present+=("$label")
+		fi
 	done
-	osascript -e "
-tell application \"Terminal\"
-	set winList to every window whose ($filter)
-	repeat with w in winList
-		close w
-	end repeat
-end tell" >/dev/null 2>&1 || true
+	[ ${#present[@]} -eq 0 ] && return 0
+	local list; printf -v list '%s, ' "${present[@]}"; list="${list%, }"
+	local choice
+	choice=$(osascript \
+		-e 'tell application "Terminal"' \
+		-e 'activate' \
+		-e "set r to display dialog \"Close these FLEETCOM log windows: $list?\" & return & return & \"Terminal will then ask you to confirm terminating each window's processes — that system prompt lists process names, not the window title.\" buttons {\"Keep open\", \"Close them\"} default button \"Close them\" with title \"FLEETCOM stop-all\"" \
+		-e 'return button returned of r' \
+		-e 'end tell' 2>/dev/null)
+	[ "$choice" = "Close them" ] || { say "left the log windows open ($list)"; return 0; }
+	osascript -e "tell application \"Terminal\" to close (every window whose ($filter))" >/dev/null 2>&1 || true
 }
 
 save_mode() { # persist LOGS_VIEW in local.conf
@@ -59,7 +74,7 @@ case "${1:-}" in
 	--kill)
 		if tmux kill-session -t "$SESSION" 2>/dev/null; then say "tmux log session closed"; else say "no tmux log session running"; fi
 		close_terminal_windows "$SESSION" win-optro-api.command win-midship-api.command win-cascade.command win-alerts.command
-		say "requested close on any spawned log windows (tmux grid or separate Terminal windows) — click 'Terminate'/'Close' on each if Terminal asks"
+		say "log window teardown done — click 'Terminate'/'Close' on each Terminal prompt if asked"
 		exit 0
 	;;
 esac
