@@ -49,7 +49,7 @@ handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
 ./fleetcom-onboard.sh     # one-time, idempotent — applies all port/SSO config
                           # first time? seed the AB database too — see "Database seeding"
 ./fleetcom-onboard.sh --reconfigure   # change repo locations later
-./fleetcom-start-all.sh   # boots everything in dependency order (gap-filling: skips what's already up)
+./fleetcom-start-all.sh   # boots everything in dependency order (skips what's already up)
 ./fleetcom-doctor.sh      # port + health report
 ./fleetcom-logs.sh        # live backend log panes + error alerts (auto-opens after start-all)
 ./fleetcom-restart-all.sh # full bounce of everything, Midship included
