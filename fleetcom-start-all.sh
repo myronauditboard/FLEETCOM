@@ -182,8 +182,8 @@ fi
 
 say "done — run ./fleetcom-doctor.sh to verify. AB: https://localhost:9002  Cascade: http://localhost:8088"
 
-if [ "$OPEN_LOGS" = 1 ] && [ -t 0 ] && command -v tmux >/dev/null; then
-	say "opening backend log panes (Ctrl-b d detaches; ./fleetcom-logs.sh reopens; --no-logs skips this)"
+if [ "$OPEN_LOGS" = 1 ] && [ -t 0 ]; then
+	say "opening backend logs (./fleetcom-logs.sh reopens later; --no-logs skips this; --tmux/--windows switches view)"
 	"$HERE/fleetcom-logs.sh"
 else
 	say "backend logs + alerts: ./fleetcom-logs.sh"

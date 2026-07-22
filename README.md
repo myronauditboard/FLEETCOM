@@ -64,20 +64,26 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 
 ## Watching logs
 
-`fleetcom-start-all.sh` ends by opening a **tmux** session with four panes
-(reopen anytime with `./fleetcom-logs.sh`; skip the auto-open with
-`./fleetcom-start-all.sh --no-logs`):
+`fleetcom-start-all.sh` ends by opening the four log streams — the first run
+asks whether you prefer a **tmux** session (one window, 2×2 grid) or **four
+separate Terminal windows**; the answer persists in `local.conf` (`LOGS_VIEW`)
+and can be switched anytime with `./fleetcom-logs.sh --tmux` /
+`--windows`. Reopen with `./fleetcom-logs.sh`; skip the auto-open with
+`./fleetcom-start-all.sh --no-logs`. The streams:
 
 | | |
 |---|---|
 | **optro-api** — AB backend (`logs/ab-api.log`) | **midship-api** (`logs/midship-api.log`) |
 | **cascade** — docker logs (web/ws/c3) | **alerts** — ERROR/WARN merged from all three |
 
-Basics: `Ctrl-b d` detaches (servers keep running), `./fleetcom-logs.sh`
+tmux basics: `Ctrl-b d` detaches (servers keep running), `./fleetcom-logs.sh`
 reattaches, `./fleetcom-logs.sh --kill` closes the panes; mouse scrolling is
-enabled. `fleetcom-stop-all.sh` closes the session automatically. The client
-logs (`ab-client.log`, `midship-frontend.log`, `cascade-client.log`) also live
-in `FLEETCOM/logs/` for manual tailing.
+enabled; `fleetcom-stop-all.sh` closes the session automatically. Windows
+mode: each stream opens as an Apple Terminal window (generated
+`logs/win-*.command` files — double-click to re-open one); closing a window
+stops its tail, and windows mode is also the automatic fallback when tmux
+isn't installed. The client logs (`ab-client.log`, `midship-frontend.log`,
+`cascade-client.log`) also live in `FLEETCOM/logs/` for manual tailing.
 
 ## Using your own start commands (start-all is optional)
 
