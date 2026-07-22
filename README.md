@@ -346,13 +346,44 @@ docker-compose-supplement-dev.yml -f ../FLEETCOM/devenv.override.yml -f
 fleetcom-stop-all used `down` for conductor/extract, which removed the shared
 network once everything else was stopped — fixed to `stop`.)
 
+### AB Caddy (9002) and client Vite (9006) both go down together
+
+**Symptoms**: `fleetcom-doctor.sh` shows both 9002 (Caddy HTTPS entrypoint)
+and 9006 (client Vite) as `NOT LISTENING` at the same time, even though only
+one thing actually broke.
+
+**Cause**: auditboard-frontend's dev orchestrator
+(`tools/monorepo/src/tasks/dev.ts`, driven by `pnpm start` → `ope dev`) runs
+Caddy (9002), the login app (9005), and the client (9006) as **one turbo
+process group** (`_:start`, persistent) — a crash in any one of them takes the
+whole group down together. A common trigger: the login app hitting an
+`ENOENT` lstat crash from a corrupted pnpm store under `node_modules/.pnpm`.
+Caddy also proxies all three under `https://localhost:9002`
+(`tools/caddy/src/Caddyfile`), so a login-app-only crash reads as "the whole
+AB frontend is down."
+
+**Fix**: check `logs/ab-client.log` for the actual crash, not just the ports.
+If it's an `ENOENT` under `node_modules/.pnpm`, that's the pnpm store
+corruption `fleetcom-onboard.sh` now detects and repairs automatically (see
+"Dependency setup is automatic" above) — `cd auditboard-frontend &&
+./refresh.sh`, then re-run `./fleetcom-start-all.sh`.
+
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404
   after SSO**: `LAUNCH_DARKLY_SDK_KEY` / `LAUNCH_DARKLY_CLIENT_ID` are missing
   from `cascade/.env` (get them from 1Password > QE Team Vault > Cascade base
   env file, then recreate the web containers and restart Parcel — or just
   re-run `fleetcom-onboard.sh`, which prompts for them). The SSO/JWT auth itself works
-  without them.
+  without them. If they're already present but the browser console shows
+  `Unhandled Rejection (LaunchDarklyFlagFetchError): Error fetching flag
+  settings: 401` instead, the values are present but **wrong** — most often
+  the SDK key and client ID got swapped when entered, or a stale/rotated
+  1Password value. `fleetcom-onboard.sh` now pings LaunchDarkly's real API
+  with whatever's in `cascade/.env` and warns on a 401, but re-running
+  onboarding alone won't fix a wrong value that's already non-empty — hand-edit
+  `cascade/.env` with fresh values, then **recreate** (not just restart) the
+  `web`/`ws` containers (`docker-compose up -d --force-recreate web ws`):
+  these env vars are baked in at container creation, not read live.
 
 - Cascade Playwright E2E starts a wiremock on host 9001 → collides with the AB
   API. Only matters when running Cascade E2E; stop the AB API first or remap
