@@ -337,10 +337,33 @@ fi
 
 # --- 6b. dependency installs (idempotent — heavy only on first run) ----------
 say "checking app dependencies (a first run can take several minutes)"
-if [ -d "$AB_FRONTEND_DIR" ] && [ ! -d "$AB_FRONTEND_DIR/node_modules" ]; then
+if [ -d "$AB_FRONTEND_DIR" ]; then
 	if command -v pnpm >/dev/null; then
-		say "pnpm install in auditboard-frontend..."
-		(cd "$AB_FRONTEND_DIR" && pnpm install --config.confirmModulesPurge=false) || say "WARNING: pnpm install failed in auditboard-frontend"
+		NEEDS_REFRESH=0
+		if [ ! -d "$AB_FRONTEND_DIR/node_modules" ]; then
+			NEEDS_REFRESH=1
+		else
+			# node_modules existing doesn't mean it's intact — an interrupted
+			# install can leave a dangling pnpm virtual-store symlink under
+			# .pnpm, which doesn't fail install but crashes dev servers later
+			# with an ENOENT lstat. `-exec test -e {} \;` forks per symlink
+			# (~9.5k of them here) and takes ~60s; a bash-builtin loop over
+			# null-delimited find output does the same check in well under 1s.
+			BROKEN_LINK=""
+			while IFS= read -r -d '' link; do
+				[ -e "$link" ] || { BROKEN_LINK="$link"; break; }
+			done < <(find "$AB_FRONTEND_DIR/node_modules/.pnpm" -maxdepth 3 -type l -print0 2>/dev/null)
+			if [ -n "$BROKEN_LINK" ]; then
+				say "auditboard-frontend/node_modules has a broken pnpm store link (partial/interrupted install)"
+				NEEDS_REFRESH=1
+			fi
+		fi
+		if [ "$NEEDS_REFRESH" = 1 ]; then
+			say "refreshing dependencies in auditboard-frontend (./refresh.sh)..."
+			(cd "$AB_FRONTEND_DIR" && ./refresh.sh) || say "WARNING: ./refresh.sh failed in auditboard-frontend"
+		else
+			say "auditboard-frontend/node_modules OK"
+		fi
 	else
 		say "WARNING: pnpm not found — skipping auditboard-frontend deps (install volta + pnpm, or run abc doctor --fix)"
 	fi
