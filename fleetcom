@@ -30,83 +30,103 @@ h() { printf '%s%s%s\n' "$B" "$1" "$N"; }
 # plain cat when piped/redirected, so `fleetcom help | cat` stays clean.
 page() { if [ -t 1 ] && command -v less >/dev/null 2>&1; then less -RF; else cat; fi; }
 
-render_overview() {
-	h "NAME"
-	printf '    fleetcom — run Midship + Cascade + AuditBoard side-by-side locally\n\n'
-	h "SYNOPSIS"
-	printf '    fleetcom <command> [options]\n'
-	printf '    fleetcom help | man             show this overview\n'
-	printf '    fleetcom <command> --help       help for one command\n\n'
-	h "COMMANDS"
-	printf '    onboard      one-time, idempotent setup (--reconfigure to change repo paths)\n'
-	printf '    start        boot everything in dependency order (--no-logs to skip log panes)\n'
-	printf '    stop         stop Cascade + AuditBoard (--midship to also stop Midship)\n'
-	printf '    restart      full bounce of everything, Midship included\n'
-	printf '    doctor       port + health report\n'
-	printf '    logs         live log panes + error alerts (--tmux | --windows | --kill)\n'
-	printf '    claude       full restart + a Claude Code pane beside the logs (--no-restart)\n'
-	printf '    help, man    this overview\n\n'
-	h "EXAMPLES"
-	printf '    fleetcom onboard                # first-time setup\n'
-	printf '    fleetcom start                  # boot the whole stack\n'
-	printf '    fleetcom doctor                 # is everything up and healthy?\n'
-	printf '    fleetcom stop --midship         # stop everything, Midship too\n'
-	printf '    fleetcom logs --help            # what the log views do\n\n'
-	h "FILES"
-	printf '    local.conf     per-machine repo paths + LOGS_VIEW (gitignored)\n'
-	printf '    logs/          backend log files the log panes tail\n\n'
-	h "SEE ALSO"
-	printf '    README.md — full setup, port map, SSO wiring, troubleshooting.\n'
-	printf '    Each command maps to a script you can also run directly:\n'
-	printf '    `fleetcom doctor` is the same as `./fleetcom-doctor.sh`.\n'
+render_version() {
+	local v
+	v="$(git -C "$HERE" describe --tags --always --dirty 2>/dev/null || true)"
+	[ -n "$v" ] || v="unknown"
+	printf 'fleetcom %s\n' "$v"
 }
 
+render_overview() {
+	h "FLEETCOM"
+	printf 'Run the Midship, Cascade, and AuditBoard stacks side-by-side, locally.\n\n'
+	h "Usage:"
+	printf '  fleetcom <command> [options]\n\n'
+	h "Commands:"
+	printf '  %-10s %s\n' onboard "Configure repositories, ports, SSO, and dependencies"
+	printf '  %-10s %s\n' start   "Start all stacks in dependency order"
+	printf '  %-10s %s\n' stop    "Stop Cascade + AuditBoard (--midship for Midship too)"
+	printf '  %-10s %s\n' restart "Restart the entire stack, Midship included"
+	printf '  %-10s %s\n' doctor  "Show port + health status"
+	printf '  %-10s %s\n' logs    "Stream backend logs and error alerts"
+	printf '  %-10s %s\n' claude  "Full restart, then launch Claude Code beside the logs"
+	printf '\n'
+	h "Global options:"
+	printf '  %-15s %s\n' "-h, --help"    "Show help"
+	printf '  %-15s %s\n' "-v, --version" "Show version"
+	printf '\n'
+	printf "Run 'fleetcom <command> --help' for command-specific help.\n"
+}
+
+# Per-command man-style page. Sections: NAME / USAGE / DESCRIPTION / OPTIONS
+# (only where the command takes any) / NOTES (only where useful) / EXAMPLES.
 render_cmd_help() {
 	case "$1" in
 	onboard)
-		h "NAME";        printf '    fleetcom onboard — one-time, idempotent machine setup\n\n'
-		h "SYNOPSIS";    printf '    fleetcom onboard [--reconfigure]\n\n'
-		h "DESCRIPTION"; printf '    Applies all port-deconfliction + SSO config so Midship, Cascade, and\n    AuditBoard run together: repo paths, env files, secrets, dependency\n    installs, Hatchet, and optional (confirmed) database seeding. Safe to\n    re-run any time.\n\n'
-		h "OPTIONS";     printf '    --reconfigure   re-prompt for repo locations, rewriting local.conf\n'
+		h "NAME";        printf '    fleetcom onboard - one-time, idempotent setup of the local stacks\n\n'
+		h "USAGE";       printf '    fleetcom onboard [--reconfigure]\n\n'
+		h "DESCRIPTION"; printf '    Applies all port-deconfliction and SSO config so Midship, Cascade,\n    and AuditBoard run side-by-side: repository paths, env files, secrets,\n    dependency installs, Hatchet, and (confirmed) database seeding. Safe to\n    run multiple times.\n\n'
+		h "OPTIONS"
+		printf '    --reconfigure\n        Re-prompt for repository locations, rewriting local.conf.\n\n'
+		h "NOTES"
+		printf '    First-time setup should also seed the AuditBoard database — see\n    "Database seeding" in the README. At the end, offers to put the\n    fleetcom command on your PATH.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom onboard\n    fleetcom onboard --reconfigure\n'
 		;;
 	start)
-		h "NAME";        printf '    fleetcom start — boot the whole stack in dependency order\n\n'
-		h "SYNOPSIS";    printf '    fleetcom start [--no-logs]\n\n'
-		h "DESCRIPTION"; printf '    Starts Midship, AuditBoard, and Cascade, skipping anything already\n    running (checks each port first). Ends by opening the log view.\n\n'
-		h "OPTIONS";     printf '    --no-logs   do not auto-open the log panes at the end\n'
+		h "NAME";        printf '    fleetcom start - boot the whole stack in dependency order\n\n'
+		h "USAGE";       printf '    fleetcom start [--no-logs]\n\n'
+		h "DESCRIPTION"; printf '    Starts Midship, AuditBoard, and Cascade, skipping anything already\n    running (each port is checked first). Ends by opening the log view.\n\n'
+		h "OPTIONS"
+		printf '    --no-logs\n        Do not auto-open the log panes after starting.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom start\n    fleetcom start --no-logs\n'
 		;;
 	stop)
-		h "NAME";        printf '    fleetcom stop — stop Cascade + AuditBoard\n\n'
-		h "SYNOPSIS";    printf '    fleetcom stop [--midship]\n\n'
-		h "DESCRIPTION"; printf '    Stops Cascade and AuditBoard and closes the log view. Midship is left\n    running (it is treated as the shared, fixed stack) unless --midship.\n\n'
-		h "OPTIONS";     printf '    --midship   also stop the Midship stack\n'
+		h "NAME";        printf '    fleetcom stop - stop Cascade and AuditBoard\n\n'
+		h "USAGE";       printf '    fleetcom stop [--midship]\n\n'
+		h "DESCRIPTION"; printf '    Stops Cascade and AuditBoard and tears down the log view. Midship is\n    left running (the shared, fixed stack) unless --midship is given.\n\n'
+		h "OPTIONS"
+		printf '    --midship\n        Also stop the Midship stack.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom stop\n    fleetcom stop --midship\n'
 		;;
 	restart)
-		h "NAME";        printf '    fleetcom restart — full bounce of everything, Midship included\n\n'
-		h "SYNOPSIS";    printf '    fleetcom restart\n\n'
-		h "DESCRIPTION"; printf '    Runs `stop --midship` then `start` — a clean bounce of all three\n    stacks.\n'
+		h "NAME";        printf '    fleetcom restart - full bounce of everything, Midship included\n\n'
+		h "USAGE";       printf '    fleetcom restart\n\n'
+		h "DESCRIPTION"; printf '    Runs "stop --midship" then "start": a clean restart of all three\n    stacks.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom restart\n'
 		;;
 	doctor)
-		h "NAME";        printf '    fleetcom doctor — port + health report\n\n'
-		h "SYNOPSIS";    printf '    fleetcom doctor\n\n'
-		h "DESCRIPTION"; printf '    Checks every expected port is held by the expected process (or free)\n    and runs basic HTTP health checks. Read-only; safe to run any time.\n    Exits non-zero if any check fails.\n'
+		h "NAME";        printf '    fleetcom doctor - port and health status report\n\n'
+		h "USAGE";       printf '    fleetcom doctor\n\n'
+		h "DESCRIPTION"; printf '    Checks that every expected port is held by the expected process (or\n    free) and runs basic HTTP health checks. Read-only and safe to run any\n    time. Exits non-zero if any check fails.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom doctor\n'
 		;;
 	logs)
-		h "NAME";        printf '    fleetcom logs — live backend logs + error alerts\n\n'
-		h "SYNOPSIS";    printf '    fleetcom logs [--tmux | --windows | --kill]\n\n'
-		h "DESCRIPTION"; printf '    Opens five live streams (optro-api, midship-api, cascade, alerts,\n    doctor) as a tmux grid or separate Terminal windows. First run asks\n    which you prefer and remembers it in local.conf (LOGS_VIEW). Ctrl-C in\n    a pane drops you into a shell in that stream'"'"'s repo.\n\n'
+		h "NAME";        printf '    fleetcom logs - stream backend logs and error alerts\n\n'
+		h "USAGE";       printf '    fleetcom logs [--tmux | --windows | --kill]\n\n'
+		h "DESCRIPTION"; printf '    Opens five live streams (optro-api, midship-api, cascade, alerts,\n    doctor) as a tmux grid or as separate Terminal windows. The first run\n    asks which you prefer and remembers it. Ctrl-C in a pane drops you into\n    a shell in that repo.\n\n'
 		h "OPTIONS"
-		printf '    --tmux      switch to the tmux grid (persisted)\n'
-		printf '    --windows   switch to separate Terminal windows (persisted)\n'
-		printf '    --kill      tear the tmux session down / close the windows\n'
+		printf '    --tmux\n        Switch to the tmux grid (persisted to local.conf).\n'
+		printf '    --windows\n        Switch to separate Terminal windows (persisted to local.conf).\n'
+		printf '    --kill\n        Tear down the tmux session / close the log windows.\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom logs\n    fleetcom logs --windows\n    fleetcom logs --kill\n'
 		;;
 	claude|start-claude)
-		h "NAME";        printf '    fleetcom claude — full restart + a Claude Code pane beside the logs\n\n'
-		h "SYNOPSIS";    printf '    fleetcom claude [--midship] [--no-restart]\n\n'
-		h "DESCRIPTION"; printf '    Full restart, then adds a Claude Code pane to the tmux log window\n    (Claude on the left, logs tiled on the right). Claude reads log output\n    on demand rather than tailing. Requires the claude CLI and tmux; run it\n    from a separate terminal, not from inside the log session.\n\n'
+		h "NAME";        printf '    fleetcom claude - full restart, then a Claude Code pane by the logs\n\n'
+		h "USAGE";       printf '    fleetcom claude [--midship] [--no-restart]\n\n'
+		h "DESCRIPTION"; printf '    Does a full restart, then adds a Claude Code pane to the tmux log\n    window (Claude on the left, logs tiled on the right). Claude reads log\n    output on demand rather than tailing continuously.\n\n'
 		h "OPTIONS"
-		printf '    --midship      also stop/restart Midship during the bounce\n'
-		printf '    --no-restart   skip the stop/start; just add the Claude pane\n'
+		printf '    --midship\n        Also stop/restart Midship during the bounce.\n'
+		printf '    --no-restart\n        Skip the stop/start; just add the Claude pane to a running session.\n\n'
+		h "NOTES"
+		printf '    Requires the claude CLI and tmux. Run it from a separate terminal\n    window, not from inside the log session (the restart tears that down).\n\n'
+		h "EXAMPLES"
+		printf '    fleetcom claude\n    fleetcom claude --no-restart\n'
 		;;
 	*)
 		printf 'fleetcom: no help for %s\n' "$1" >&2
@@ -118,8 +138,9 @@ render_cmd_help() {
 sub="${1:-help}"
 [ $# -ge 1 ] && shift || true
 
-# overview: bare `fleetcom`, help, man, -h, --help
+# global: version, then overview (bare `fleetcom`, help, man, -h, --help)
 case "$sub" in
+	-v|--version|version) render_version; exit 0 ;;
 	help|man|-h|--help|"") render_overview | page; exit 0 ;;
 esac
 
