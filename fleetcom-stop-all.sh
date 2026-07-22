@@ -59,6 +59,6 @@ if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 fi
 
 tmux kill-session -t fleetcom-ab-api 2>/dev/null && say "AB API tmux session closed" || true
-tmux kill-session -t fleetcom-logs 2>/dev/null && say "log panes closed" || true
+"$HERE/fleetcom-logs.sh" --kill   # kills the logs tmux session and requests close on any spawned Terminal windows (may need a per-window click to confirm)
 
 say "done"
