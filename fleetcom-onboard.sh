@@ -553,4 +553,36 @@ if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 	fi
 fi
 
-say "done. Next: ./fleetcom-start-all.sh && ./fleetcom-doctor.sh — see README.md"
+# --- 10. put the `fleetcom` command on PATH (optional convenience) ----------
+# Symlink FLEETCOM/fleetcom into Homebrew's bin (already on PATH and
+# user-writable; every FLEETCOM machine has brew) so you can run
+# `fleetcom start` from anywhere instead of `./fleetcom start`. Idempotent and
+# non-destructive: never clobbers an existing non-FLEETCOM `fleetcom`.
+FLEETCOM_BIN="$HERE/fleetcom"
+LINK_DIR="$BREW_PREFIX/bin"
+LINK="$LINK_DIR/fleetcom"
+if [ -x "$FLEETCOM_BIN" ]; then
+	if [ -L "$LINK" ] && [ "$(readlink "$LINK")" = "$FLEETCOM_BIN" ]; then
+		say "fleetcom command already on PATH -> $LINK"
+	elif [ -e "$LINK" ]; then
+		say "note: $LINK already exists and isn't FLEETCOM's symlink — leaving it alone (use ./fleetcom, or relink by hand)"
+	elif [ ! -w "$LINK_DIR" ]; then
+		say "note: to run 'fleetcom' from anywhere, symlink it onto your PATH: ln -s '$FLEETCOM_BIN' <a-dir-on-your-PATH>/fleetcom"
+	elif [ -t 0 ]; then
+		read -r -p "[onboard] Put the 'fleetcom' command on your PATH (symlink into $LINK_DIR)? [Y/n] " FYN || true
+		case "$FYN" in
+			[Nn]*) say "skipped — run ./fleetcom from the repo, or symlink later" ;;
+			*)
+				if ln -s "$FLEETCOM_BIN" "$LINK"; then
+					say "linked: 'fleetcom' is now on your PATH (try: fleetcom help)"
+				else
+					say "WARNING: could not create $LINK"
+				fi
+			;;
+		esac
+	else
+		say "note: no TTY to confirm — to add fleetcom to PATH: ln -s '$FLEETCOM_BIN' $LINK"
+	fi
+fi
+
+say "done. Next: ./fleetcom start && ./fleetcom doctor  (or 'fleetcom …' if you linked it onto PATH) — see README.md"

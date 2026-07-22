@@ -69,6 +69,10 @@ directly — e.g. `./fleetcom doctor` is exactly `./fleetcom-doctor.sh`. The
 `fleetcom` wrapper is just the friendly front door (and where `--help` lives);
 the scripts remain the implementation and call each other by name.
 
+`fleetcom-onboard.sh` offers to symlink `fleetcom` into Homebrew's `bin` (on
+your PATH), so after onboarding you can drop the `./` and run `fleetcom start`
+from anywhere. Until then, use `./fleetcom <command>` from the repo.
+
 Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 `password`) and test SSO into Cascade via
 **https://localhost:9002/sh/auditboardanalytics/auth** → should land on

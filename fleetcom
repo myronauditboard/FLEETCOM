@@ -7,7 +7,17 @@
 #   fleetcom <command> --help      help for that one command
 set -euo pipefail
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
+# Resolve $0 through symlinks so HERE is the repo dir even when fleetcom is run
+# via a symlink on PATH (e.g. /opt/homebrew/bin/fleetcom -> the repo). Plain
+# `dirname "$0"` would give the symlink's dir, and delegating subcommands would
+# then look for fleetcom-<x>.sh in the wrong place. (Portable — no readlink -f.)
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+	dir="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	case "$SOURCE" in /*) ;; *) SOURCE="$dir/$SOURCE" ;; esac
+done
+HERE="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 # --- formatting: bold section headers on a TTY, plain when piped -------------
 if [ -t 1 ]; then
