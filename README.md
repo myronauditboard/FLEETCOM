@@ -68,10 +68,10 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 
 ## Watching logs
 
-`fleetcom-start-all.sh` ends by opening the four log streams — the first run
-asks whether you prefer a **tmux** session (one window, 2×2 grid) or **four
-separate Terminal windows**; the answer persists in `local.conf` (`LOGS_VIEW`)
-and can be switched anytime with `./fleetcom-logs.sh --tmux` /
+`fleetcom-start-all.sh` ends by opening the five log streams — the first run
+asks whether you prefer a **tmux** session (one window, tiled grid) or
+**separate Terminal windows**; the answer persists in `local.conf`
+(`LOGS_VIEW`) and can be switched anytime with `./fleetcom-logs.sh --tmux` /
 `--windows`. Reopen with `./fleetcom-logs.sh`; skip the auto-open with
 `./fleetcom-start-all.sh --no-logs`. The streams:
 
@@ -79,6 +79,11 @@ and can be switched anytime with `./fleetcom-logs.sh --tmux` /
 |---|---|
 | **optro-api** — AB backend (`logs/ab-api.log`) | **midship-api** (`logs/midship-api.log`) |
 | **cascade** — docker logs (web/ws/c3) | **alerts** — ERROR/WARN merged from all three |
+| **doctor** — live `fleetcom-doctor.sh`, refreshed every 2s | |
+
+The **doctor** stream re-runs the port/health report on a loop so you watch
+services flip ✓/✗ as they come up and down (uses `watch` if installed, else a
+plain refresh loop). Like the others, it's torn down by `fleetcom-stop-all.sh`.
 
 tmux basics: `Ctrl-b d` detaches (servers keep running), `./fleetcom-logs.sh`
 reattaches, `./fleetcom-logs.sh --kill` closes the panes; mouse scrolling is

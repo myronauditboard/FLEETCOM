@@ -84,7 +84,7 @@ case "${1:-}" in
 	--windows) MODE=windows; save_mode windows; say "log view set to separate windows (saved to local.conf)" ;;
 	--kill)
 		if tmux kill-session -t "$SESSION" 2>/dev/null; then say "tmux log session closed"; else say "no tmux log session running"; fi
-		close_terminal_windows "$SESSION" win-optro-api.command win-midship-api.command win-cascade.command win-alerts.command
+		close_terminal_windows "$SESSION" win-optro-api.command win-midship-api.command win-cascade.command win-alerts.command win-doctor.command
 		say "log window teardown done — click 'Terminate'/'Close' on each Terminal prompt if asked"
 		exit 0
 	;;
@@ -116,6 +116,15 @@ OPTRO_CMD="tail -n 80 -F '$LOGS/ab-api.log'"
 MIDSHIP_CMD="tail -n 80 -F '$LOGS/midship-api.log'"
 CASCADE_CMD="cd '$CASCADE_DIR' && $CASCADE_COMPOSE logs -f --tail 80 web ws c3 c3manager"
 ALERTS_CMD="{ tail -n 0 -F '$LOGS/ab-api.log' '$LOGS/midship-api.log' & { cd '$CASCADE_DIR' && $CASCADE_COMPOSE logs -f --tail 0 web ws c3 c3manager 2>&1; } & wait; } | grep --line-buffered -iE '(errors?|warn(ing)?|fatal|exceptions?|traceback)[: ]'"
+# doctor: live port/health report, refreshed as services come up and down.
+# `watch` isn't on macOS by default, so fall back to a clear+sleep loop (both
+# preserve doctor's color). `|| true` so a non-zero doctor run (some check
+# failing — the normal case while booting) doesn't stop the loop.
+if command -v watch >/dev/null 2>&1; then
+	DOCTOR_CMD="watch -c -n 2 '$HERE/fleetcom-doctor.sh'"
+else
+	DOCTOR_CMD="while :; do clear; '$HERE/fleetcom-doctor.sh' || true; printf '\n(doctor — refreshing every 2s; Ctrl-C to stop. brew install watch for a nicer view)\n'; sleep 2; done"
+fi
 
 # Wrap a stream command so the pane/window stays usable instead of dying:
 #  - cd into the stream's repo first, so you land somewhere you can work
@@ -151,7 +160,8 @@ if [ "$MODE" = "windows" ]; then
 	open_win midship-api "$MIDSHIP_CMD" "$MIDSHIP_TURBO_BROCCOLI_DIR"
 	open_win cascade     "$CASCADE_CMD" "$CASCADE_DIR"
 	open_win alerts      "$ALERTS_CMD"  "$HERE"
-	say "opened 4 Terminal windows (re-open any later from $LOGS/win-*.command; Ctrl-C drops to a shell in that repo, type exit to close)"
+	open_win doctor      "$DOCTOR_CMD"  "$HERE"
+	say "opened 5 Terminal windows (re-open any later from $LOGS/win-*.command; Ctrl-C drops to a shell in that repo, type exit to close)"
 	exit 0
 fi
 
@@ -172,12 +182,14 @@ P_OPTRO=$(tmux new-session  -d -s "$SESSION" -n backends -P -F '#{pane_id}' "$(w
 P_MIDSHIP=$(tmux split-window -h -t "$P_OPTRO"   -P -F '#{pane_id}' "$(wrap "$MIDSHIP_CMD" "$MIDSHIP_TURBO_BROCCOLI_DIR")")
 P_CASCADE=$(tmux split-window -v -t "$P_OPTRO"   -P -F '#{pane_id}' "$(wrap "$CASCADE_CMD" "$CASCADE_DIR")")
 P_ALERTS=$(tmux split-window  -v -t "$P_MIDSHIP" -P -F '#{pane_id}' "$(wrap "$ALERTS_CMD"  "$HERE")")
+P_DOCTOR=$(tmux split-window  -v -t "$P_CASCADE" -P -F '#{pane_id}' "$(wrap "$DOCTOR_CMD"  "$HERE")")
 tmux select-layout -t "$SESSION:backends" tiled
 
 tmux select-pane -t "$P_OPTRO"   -T "optro-api"
 tmux select-pane -t "$P_MIDSHIP" -T "midship-api"
 tmux select-pane -t "$P_CASCADE" -T "cascade"
 tmux select-pane -t "$P_ALERTS"  -T "alerts (ERROR/WARN)"
+tmux select-pane -t "$P_DOCTOR"  -T "doctor"
 tmux set-option  -t "$SESSION" pane-border-status top
 tmux set-option  -t "$SESSION" mouse on
 tmux set-option  -t "$SESSION" status-right-length 60

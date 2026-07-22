@@ -71,9 +71,12 @@ LOGS_VIEW=tmux "$HERE/fleetcom-logs.sh" < /dev/null
 # to switch to). main-vertical layout: pane index 0 is the big "main" pane on
 # the left (claude, 70% width), the rest tile in a strip on the right.
 WINDOW="$SESSION:backends"
-PANE_COUNT=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}' | wc -l | tr -d ' ')
+# Detect an existing claude pane by its title, not by pane count — the log
+# window's pane count varies (4 log streams + a doctor pane, and more could be
+# added later), so a count threshold is brittle.
+CLAUDE_PANE=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}:#{pane_title}' 2>/dev/null | awk -F: '$2=="claude"{print $1; exit}')
 CLAUDE_PANE_IS_NEW=false
-if [ "$PANE_COUNT" -lt 5 ]; then
+if [ -z "$CLAUDE_PANE" ]; then
 	say "adding claude pane -> $WINDOW"
 	CLAUDE_PANE=$(tmux split-window -t "$WINDOW" -c "$HERE" -P -F '#{pane_id}')
 	FIRST_PANE=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}' | head -1)
@@ -88,7 +91,6 @@ if [ "$PANE_COUNT" -lt 5 ]; then
 	CLAUDE_PANE_IS_NEW=true
 else
 	say "claude pane already present — reusing it (not re-launching claude)"
-	CLAUDE_PANE=$(tmux list-panes -t "$WINDOW" -F '#{pane_id}:#{pane_title}' | awk -F: '$2=="claude"{print $1; exit}')
 fi
 
 # --- pane map: what each tmux pane exposes, for claude to read on startup ---
