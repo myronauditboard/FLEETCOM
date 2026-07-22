@@ -22,52 +22,38 @@ CASCADE_COMPOSE="docker-compose -f docker-compose.yml -f docker-compose-build.ym
 say() { printf '\033[36m[logs]\033[0m %s\n' "$*"; }
 
 # Close any spawned Terminal.app windows: the tmux grid's outer window
-# (titled "$SESSION") and/or the four separate-window titles. Each arg is a
+# (titled "$SESSION") and/or the separate-window titles. Each arg is a
 # window-name substring to match — the exact win-<name>.command filename
 # Terminal shows for the running script, NOT the bare label ("cascade",
 # "optro-api"), which could collide with an unrelated window/tab you named
 # yourself.
 #
-# We show our OWN confirmation naming the windows first, because Terminal's
-# own close sheet lists running *process* names ("tail", "grep"), never the
-# window title — and its text can't be customized. After you confirm here,
-# Terminal still shows that per-window sheet (unavoidable without granting
-# Accessibility/UI-scripting access, which this doesn't ask for); this dialog
-# just tells you up front which windows are in scope. Labels are derived from
-# the match terms (which we control), not parsed from Terminal's generated
-# window names (whose em-dash separators don't survive macOS sed reliably).
-# Skip entirely if Terminal.app isn't running, or if none of the windows are
-# actually open.
+# We loop and close each matching window individually so Terminal shows its
+# own "terminate running processes?" confirmation once per window — the user
+# clicks through each. (An earlier version added our own summary dialog first
+# and then closed the whole set in one `close (every window whose ...)` call;
+# that reliably prompted for only the first window and left the rest silently
+# open, so the user didn't know they could close them. Terminal's per-window
+# sheet can't be customized or auto-dismissed without Accessibility access,
+# which this doesn't ask for.) Skip if Terminal.app isn't running.
 close_terminal_windows() {
 	# FLEETCOM_NONINTERACTIVE: automated callers (e.g. fleetcom-start-claude.sh's
-	# full restart) set this so we DON'T pop a blocking GUI dialog mid-flow. The
-	# tmux session is already killed by the --kill path before this runs; skipping
-	# here just leaves any Terminal windows for the user to close, rather than
-	# hanging on a confirmation that no one is watching for.
+	# full restart) set this to skip window-closing entirely — the tmux session
+	# is already killed by the --kill path before this runs, so we just leave any
+	# Terminal windows in place rather than firing close prompts no one's watching.
 	[ -n "${FLEETCOM_NONINTERACTIVE:-}" ] && return 0
 	pgrep -xq Terminal || return 0
-	local filter="" t label matched present=()
+	local filter="" t
 	for t in "$@"; do
 		filter="${filter:+$filter or }name contains \"$t\""
-		matched=$(osascript -e "tell application \"Terminal\" to get (count of (every window whose name contains \"$t\"))" 2>/dev/null)
-		case "$matched" in ''|*[!0-9]*) matched=0 ;; esac
-		if [ "$matched" -gt 0 ]; then
-			label="${t#win-}"; label="${label%.command}"
-			[ "$label" = "$SESSION" ] && label="log grid ($SESSION)"
-			present+=("$label")
-		fi
 	done
-	[ ${#present[@]} -eq 0 ] && return 0
-	local list; printf -v list '%s, ' "${present[@]}"; list="${list%, }"
-	local choice
-	choice=$(osascript \
-		-e 'tell application "Terminal"' \
-		-e 'activate' \
-		-e "set r to display dialog \"Close these FLEETCOM log windows: $list?\" & return & return & \"Terminal will then ask you to confirm terminating each window's processes — that system prompt lists process names, not the window title.\" buttons {\"Keep open\", \"Close them\"} default button \"Close them\" with title \"FLEETCOM stop-all\"" \
-		-e 'return button returned of r' \
-		-e 'end tell' 2>/dev/null)
-	[ "$choice" = "Close them" ] || { say "left the log windows open ($list)"; return 0; }
-	osascript -e "tell application \"Terminal\" to close (every window whose ($filter))" >/dev/null 2>&1 || true
+	osascript -e "
+tell application \"Terminal\"
+	set winList to every window whose ($filter)
+	repeat with w in winList
+		close w
+	end repeat
+end tell" >/dev/null 2>&1 || true
 }
 
 save_mode() { # persist LOGS_VIEW in local.conf
