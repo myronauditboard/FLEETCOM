@@ -312,6 +312,30 @@ if ! { grep -qE '^LAUNCH_DARKLY_SDK_KEY=.+' "$CASCADE/.env" && grep -qE '^LAUNCH
 		say "WARNING: LAUNCH_DARKLY_SDK_KEY / LAUNCH_DARKLY_CLIENT_ID missing from cascade/.env and no TTY to prompt — set them manually or re-run fleetcom-onboard.sh interactively"
 	fi
 fi
+# Validate whatever LaunchDarkly credentials are CURRENTLY in cascade/.env —
+# existence alone doesn't mean LaunchDarkly accepts them (e.g. the SDK key and
+# client ID got swapped, or one was mistyped, just now or in a past run that
+# onboarding's non-empty check can't tell apart from a good one). Runs
+# unconditionally so a stale bad value from a prior run gets caught too, not
+# just a value just typed above. Fails OPEN: only a definitive 401 is treated
+# as invalid — a network hiccup or unexpected status reads as "couldn't
+# verify", never forcing a needless fix for a value that was actually fine.
+LD_SDK_VAL=$(grep -E '^LAUNCH_DARKLY_SDK_KEY=.+' "$CASCADE/.env" | tail -1 | cut -d= -f2-)
+LD_CID_VAL=$(grep -E '^LAUNCH_DARKLY_CLIENT_ID=.+' "$CASCADE/.env" | tail -1 | cut -d= -f2-)
+if [ -n "$LD_SDK_VAL" ] && [ -n "$LD_CID_VAL" ]; then
+	SDK_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+		-H "Authorization: $LD_SDK_VAL" https://sdk.launchdarkly.com/sdk/latest-all 2>/dev/null)
+	LD_CTX=$(printf '{"kind":"user","key":"fleetcom-onboard-check","anonymous":true}' | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')
+	CID_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+		"https://clientsdk.launchdarkly.com/sdk/evalx/$LD_CID_VAL/contexts/$LD_CTX" 2>/dev/null)
+	if [ "$SDK_CODE" = "401" ] || [ "$CID_CODE" = "401" ]; then
+		say "WARNING: LaunchDarkly rejected the credentials in cascade/.env (SDK key check: $SDK_CODE, Client ID check: $CID_CODE) — the cascade client will crash fetching flags (401) until fixed. Get fresh values from 1Password > QE Team Vault > Cascade base env file and hand-edit LAUNCH_DARKLY_SDK_KEY/LAUNCH_DARKLY_CLIENT_ID in cascade/.env — re-running onboarding won't catch a wrong value that's already non-empty"
+	elif [ "$SDK_CODE" = "200" ] && [ "$CID_CODE" = "200" ]; then
+		say "cascade/.env LaunchDarkly credentials verified OK"
+	else
+		say "note: couldn't verify cascade/.env LaunchDarkly credentials (LaunchDarkly unreachable or returned an unexpected status) — skipping"
+	fi
+fi
 if grep -q "$MARKER" "$CASCADE/.env"; then
 	say "cascade .env SSO block already present"
 else
