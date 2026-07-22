@@ -41,10 +41,13 @@ kill_port 9001; kill_port 9003                     # api v1/v2 (turbo children f
 # upstream bug: machine-learning's bin/ml-stop never cds into its repo, so its
 # 'docker compose stop' silently no-ops — stop the ML project ourselves
 [ -d "$ML_DIR" ] && (cd "$ML_DIR" && docker compose stop 2>/dev/null) && say "machine-learning stopped"
+# 'stop', not 'down': down would also remove the shared project network once
+# nothing is running, leaving every stopped container pinned to a dead network
+# ID — the next start-background then dies with "network ... not found"
 (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
-	-f "$HERE/devenv.override.yml" -f "$HERE/extract.override.yml" down conductor integrations-extract 2>/dev/null) \
+	-f "$HERE/devenv.override.yml" -f "$HERE/extract.override.yml" stop conductor integrations-extract 2>/dev/null) \
 	|| (cd "$DEVENV" && direnv exec . docker compose -f docker-compose-supplement-dev.yml \
-	-f "$HERE/devenv.override.yml" down conductor 2>/dev/null) || true
+	-f "$HERE/devenv.override.yml" stop conductor 2>/dev/null) || true
 brew services stop postgresql@17 >/dev/null 2>&1
 brew services stop redis >/dev/null 2>&1
 

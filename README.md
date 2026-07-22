@@ -331,6 +331,18 @@ starts the local server on the right ports, and copies the worker token into
 midship's `.env`. Midship boots fine without it, but the document-processing
 pipeline (Hatchet workers) won't run until it's up.
 
+### start-background: "failed to set up container networking: network … not found"
+
+Stopped containers are pinned to a Docker network that no longer exists
+(network churn from Docker restarts, prunes, or a partial `compose down`).
+`fleetcom-start-all.sh` detects this and self-heals (force-recreates the
+supplement containers on the live network, then retries). Manual fix, from
+`auditboard-dev-env`: `direnv exec . docker compose -f
+docker-compose-supplement-dev.yml -f ../FLEETCOM/devenv.override.yml -f
+../FLEETCOM/extract.override.yml up -d --force-recreate`. (Historical cause:
+fleetcom-stop-all used `down` for conductor/extract, which removed the shared
+network once everything else was stopped — fixed to `stop`.)
+
 ## Known edge cases
 - **Cascade client crashes with LaunchDarklyFlagFetchError and lands on /404
   after SSO**: `LAUNCH_DARKLY_SDK_KEY` / `LAUNCH_DARKLY_CLIENT_ID` are missing

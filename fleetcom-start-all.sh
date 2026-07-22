@@ -11,6 +11,9 @@ CASCADE="$CASCADE_DIR"
 LOGS="$HERE/logs"
 mkdir -p "$LOGS"
 
+say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
+up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
+
 OPEN_LOGS=1
 [ "${1:-}" = "--no-logs" ] && OPEN_LOGS=0
 
@@ -23,9 +26,6 @@ if ! docker info >/dev/null 2>&1; then
 	docker info >/dev/null 2>&1 || { say "ERROR: docker engine did not come up — start Docker Desktop manually"; exit 1; }
 	say "docker engine is up"
 fi
-
-say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
-up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
 # --- Midship (fixed ports; owns 5432/6379/8080/9980/8000/5173) --------------
 if [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
@@ -100,8 +100,21 @@ else
 	say "WARNING: no integrations-extract service in auditboard-dev-env — checkout outdated? (git -C $DEVENV pull, then abc run start-background)"
 fi
 say "AB background services ($SKIP start separately with local overrides)"
-(cd "$DEVENV" && abc run start-background -- -s "$SKIP") \
-	|| say "WARNING: start-background FAILED — minio/poxa/ML/pdf/excelio may be down. Run 'abc run start-background' in $DEVENV to see why (common: ORKES_ACCESS_TOKEN missing from a stale .envrc — regenerate with CREATE_ENVRC=true bin/generate-config, then re-run fleetcom-onboard.sh)"
+SB_LOG=$(mktemp)
+if ! (cd "$DEVENV" && abc run start-background -- -s "$SKIP") 2>&1 | tee "$SB_LOG"; then
+	if grep -qE "network [a-f0-9]+ not found" "$SB_LOG"; then
+		# stopped containers pinned to a removed docker network (churn from
+		# docker restarts / compose down) — recreate them on the live network
+		say "stale docker network references detected — force-recreating the supplement containers"
+		(cd "$DEVENV" && direnv exec . docker compose "${UP_FILES[@]}" up -d --force-recreate) \
+			|| say "WARNING: force-recreate failed — see output above"
+		(cd "$DEVENV" && abc run start-background -- -s "$SKIP") \
+			|| say "WARNING: start-background still failing after network recovery — run it manually in $DEVENV to investigate"
+	else
+		say "WARNING: start-background FAILED — minio/poxa/ML/pdf/excelio may be down. Run 'abc run start-background' in $DEVENV to see why (common: ORKES_ACCESS_TOKEN missing from a stale .envrc — regenerate with CREATE_ENVRC=true bin/generate-config, then re-run fleetcom-onboard.sh)"
+	fi
+fi
+rm -f "$SB_LOG"
 (cd "$DEVENV" && direnv exec . docker compose "${UP_FILES[@]}" up -d "${UP_SERVICES[@]}") \
 	|| say "WARNING: conductor/extract startup failed (see above) — continuing with the rest of the boot"
 
