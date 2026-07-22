@@ -48,17 +48,26 @@ handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
 
 ## Quick start
 
+Everything runs through one command — `./fleetcom <command>` — with built-in
+man-style help (`./fleetcom help`, and `./fleetcom <command> --help`):
+
 ```bash
-./fleetcom-onboard.sh     # one-time, idempotent — applies all port/SSO config
+./fleetcom onboard        # one-time, idempotent — applies all port/SSO config
                           # first time? seed the AB database too — see "Database seeding"
-./fleetcom-onboard.sh --reconfigure   # change repo locations later
-./fleetcom-start-all.sh   # boots everything in dependency order (skips what's already up)
-./fleetcom-doctor.sh      # port + health report
-./fleetcom-logs.sh        # live backend log panes + error alerts (auto-opens after start-all)
-./fleetcom-restart-all.sh # full bounce of everything, Midship included
-./fleetcom-stop-all.sh    # stops Cascade + AuditBoard (--midship to also stop Midship)
-./fleetcom-start-claude.sh # full restart + a Claude Code pane beside the logs (see below)
+./fleetcom onboard --reconfigure   # change repo locations later
+./fleetcom start          # boots everything in dependency order (skips what's already up)
+./fleetcom doctor         # port + health report
+./fleetcom logs           # live backend log panes + error alerts (auto-opens after start)
+./fleetcom restart        # full bounce of everything, Midship included
+./fleetcom stop           # stops Cascade + AuditBoard (--midship to also stop Midship)
+./fleetcom claude         # full restart + a Claude Code pane beside the logs (see below)
+./fleetcom help           # man-style overview of every command
 ```
+
+Each subcommand maps to a `fleetcom-<name>.sh` script that still works when run
+directly — e.g. `./fleetcom doctor` is exactly `./fleetcom-doctor.sh`. The
+`fleetcom` wrapper is just the friendly front door (and where `--help` lives);
+the scripts remain the implementation and call each other by name.
 
 Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 `password`) and test SSO into Cascade via
@@ -100,10 +109,10 @@ the pane.
 
 ## Debugging with Claude beside the logs
 
-`./fleetcom-start-claude.sh` does a full restart (`stop-all` then `start-all`)
-and then adds a **Claude Code pane** to the tmux log window — Claude on the
-left (~70% width), the four log streams tiled in a strip on the right, all in
-one window. It writes `logs/tmux-panes.md` (a map of which pane shows what) and
+`./fleetcom claude` (aka `./fleetcom-start-claude.sh`) does a full restart
+(`stop` then `start`) and then adds a **Claude Code pane** to the tmux log
+window — Claude on the left (~70% width), the log streams tiled in a strip on
+the right, all in one window. It writes `logs/tmux-panes.md` (a map of which pane shows what) and
 launches Claude pointed at it, so Claude reads log output **on demand** with
 `tmux capture-pane` rather than tailing continuously (which would bloat its
 context). Pair it with the `fleetcom-doctor` skill — that Claude session, run
