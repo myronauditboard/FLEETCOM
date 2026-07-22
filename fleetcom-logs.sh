@@ -121,9 +121,9 @@ ALERTS_CMD="{ tail -n 0 -F '$LOGS/ab-api.log' '$LOGS/midship-api.log' & { cd '$C
 # preserve doctor's color). `|| true` so a non-zero doctor run (some check
 # failing — the normal case while booting) doesn't stop the loop.
 if command -v watch >/dev/null 2>&1; then
-	DOCTOR_CMD="watch -c -n 2 '$HERE/fleetcom-doctor.sh'"
+	DOCTOR_CMD="watch -c -n 10 '$HERE/fleetcom-doctor.sh'"
 else
-	DOCTOR_CMD="while :; do clear; '$HERE/fleetcom-doctor.sh' || true; printf '\n(doctor — refreshing every 2s; Ctrl-C to stop. brew install watch for a nicer view)\n'; sleep 2; done"
+	DOCTOR_CMD="while :; do clear; '$HERE/fleetcom-doctor.sh' || true; printf '\n(doctor — refreshing every 10s; Ctrl-C to stop. brew install watch for a nicer view)\n'; sleep 10; done"
 fi
 
 # Wrap a stream command so the pane/window stays usable instead of dying:

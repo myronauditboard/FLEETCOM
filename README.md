@@ -79,7 +79,7 @@ asks whether you prefer a **tmux** session (one window, tiled grid) or
 |---|---|
 | **optro-api** — AB backend (`logs/ab-api.log`) | **midship-api** (`logs/midship-api.log`) |
 | **cascade** — docker logs (web/ws/c3) | **alerts** — ERROR/WARN merged from all three |
-| **doctor** — live `fleetcom-doctor.sh`, refreshed every 2s | |
+| **doctor** — live `fleetcom-doctor.sh`, refreshed every 10s | |
 
 The **doctor** stream re-runs the port/health report on a loop so you watch
 services flip ✓/✗ as they come up and down (uses `watch` if installed, else a
