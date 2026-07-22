@@ -252,9 +252,13 @@ page renders only the logo). DevTools console shows `api/v1/config` → **400**,
 often followed by `Cannot read properties of undefined (reading
 'session.termination.browserClosed')` and a failed Vite HMR websocket.
 
-**Cause**: a stale `g_state` cookie (JSON blob Google Sign-In leaves on
-`localhost` from *other* local projects) breaks Hapi's strict cookie parsing —
-one bad cookie 400s **every** API request: `{"message":"Invalid cookie value"}`.
+**Cause**: the `g_state` cookie that **Midship's own Google Sign-In** plants on
+`localhost` (GIS One-Tap state, a JSON blob; see midship-frontend
+`SignIn.tsx`). Cookies ignore ports, so signing into Midship at `:5173` puts
+it on every localhost app — and Hapi's strict cookie parsing 400s **every**
+AB API request over one bad cookie: `{"message":"Invalid cookie value"}`.
+AB-only developers never see this; it's inherent to running Midship + AB in
+one browser profile.
 
 **Fix**: on the `localhost:9002` tab, run this in the DevTools console, then
 reload:
