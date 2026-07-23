@@ -59,6 +59,13 @@ if [ "${1:-}" = "--midship" ] && [ -d "$MIDSHIP_TURBO_BROCCOLI_DIR" ]; then
 fi
 
 tmux kill-session -t fleetcom-ab-api 2>/dev/null && say "AB API tmux session closed" || true
-"$HERE/fleetcom-logs.sh" --kill   # kills the logs tmux session and requests close on any spawned Terminal windows (may need a per-window click to confirm)
+# FLEETCOM_KEEP_LOGS: fleetcom-start-claude.sh runs the restart INSIDE the log
+# session's claude pane, so it sets this to stop us from tearing that session
+# down mid-restart. Normal `stop` leaves it unset and closes the log view.
+if [ -n "${FLEETCOM_KEEP_LOGS:-}" ]; then
+	say "keeping the log session (FLEETCOM_KEEP_LOGS set)"
+else
+	"$HERE/fleetcom-logs.sh" --kill   # kills the logs tmux session and requests close on any spawned Terminal windows (may need a per-window click to confirm)
+fi
 
 say "done"

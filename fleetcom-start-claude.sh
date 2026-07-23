@@ -64,25 +64,24 @@ for a in "$@"; do
 		*) FWD+=("$a") ;;
 	esac
 done
+FWD_STR=""
+[ ${#FWD[@]} -gt 0 ] && FWD_STR=" ${FWD[*]}"
 
+# Attach-first: build the tmux log session (+ claude pane) BEFORE the restart,
+# then run the restart INSIDE the claude pane. The panes come up immediately and
+# you watch the boot happen in them, instead of staring at a blank terminal
+# while a slow (or wedged) start-all blocks — the old flow only attached after
+# start-all returned, so a hung boot left you with no panes at all. On a restart
+# we rebuild the session fresh; on --no-restart we reuse any existing one.
 if [ "$RESTART" = 1 ]; then
-	# full restart: stop everything first (forward args so --midship still works),
-	# then boot everything the normal way; skip start-all's own log-opening step
-	# so we can build the tmux session ourselves and add the claude pane before
-	# attaching. FLEETCOM_NONINTERACTIVE stops stop-all's log-window teardown from
-	# popping a blocking confirmation dialog mid-restart (the tmux session is
-	# still killed so we can rebuild it; we re-attach the same terminal at the end).
-	say "stopping everything first"
-	FLEETCOM_NONINTERACTIVE=1 "$HERE/fleetcom-stop-all.sh" ${FWD[@]+"${FWD[@]}"} \
-		|| say "stop-all exited non-zero — continuing to start-all anyway"
-	say "starting everything"
-	"$HERE/fleetcom-start-all.sh" --no-logs ${FWD[@]+"${FWD[@]}"}
-else
-	say "--no-restart: skipping stop/start, just (re)building the log session + claude pane"
+	tmux kill-session -t "$SESSION" 2>/dev/null || true
 fi
-
-say "building tmux log session"
-LOGS_VIEW=tmux "$HERE/fleetcom-logs.sh" < /dev/null
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+	say "reusing existing tmux log session"
+else
+	say "building tmux log session"
+	LOGS_VIEW=tmux "$HERE/fleetcom-logs.sh" < /dev/null
+fi
 
 # --- claude pane -----------------------------------------------------------
 # Lives in the same window as the 4 log panes (not a separate window you have
@@ -138,10 +137,19 @@ say "pane map -> $MAP"
 
 if [ "$CLAUDE_PANE_IS_NEW" = true ]; then
 	CLAUDE_PROMPT="Read $MAP for the FLEETCOM tmux session/pane layout. Pull pane output on demand with tmux capture-pane -p -t <pane_id> instead of tailing continuously."
-	tmux send-keys -t "$CLAUDE_PANE" "cd '$HERE' && claude \"$CLAUDE_PROMPT\"" C-m
+	# On a restart, run stop+start IN the claude pane first (visible, with the log
+	# panes showing the boot), then launch Claude. FLEETCOM_KEEP_LOGS keeps the log
+	# session we're attached to alive through stop-all (it would otherwise kill it).
+	# ';' not '&&' so a non-zero stop still proceeds to start, matching old behavior.
+	PANE_CMD=""
+	if [ "$RESTART" = 1 ]; then
+		PANE_CMD="FLEETCOM_KEEP_LOGS=1 '$HERE/fleetcom-stop-all.sh'$FWD_STR; '$HERE/fleetcom-start-all.sh' --no-logs$FWD_STR; "
+	fi
+	PANE_CMD="${PANE_CMD}cd '$HERE' && claude \"$CLAUDE_PROMPT\""
+	tmux send-keys -t "$CLAUDE_PANE" "$PANE_CMD" C-m
 fi
 
-say "done — attach with: tmux attach -t $SESSION  (claude pane + log strip are both in the 'backends' window)"
+say "done — attaching now; the restart (if any) runs live in the claude pane. Reattach later: tmux attach -t $SESSION"
 if [ -t 0 ]; then
 	printf '\033]0;%s\007' "$SESSION"   # window title, so a later fleetcom-stop-all can find/close it
 	if [ -n "${TMUX:-}" ]; then tmux switch-client -t "$WINDOW"; else exec tmux attach -t "$WINDOW"; fi
