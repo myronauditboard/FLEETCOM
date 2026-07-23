@@ -23,6 +23,24 @@ MAP="$LOGS/tmux-panes.md"
 
 say() { printf '\033[36m[start-claude]\033[0m %s\n' "$*"; }
 
+# Reorder the right-hand log column (top→bottom) after main-vertical. main-vertical
+# stacks the non-main panes by internal order, which the earlier splits + swap
+# leave in an arbitrary sequence; a selection sort with swap-pane (which
+# physically moves a pane's position) puts them where we want, no re-layout
+# needed. Titles are matched by prefix so "alerts (ERROR/WARN)" matches "alerts".
+reorder_backends() { # window
+	local win="$1" i want slot want_id
+	local -a order=(doctor midship-api optro-api cascade alerts)
+	for i in "${!order[@]}"; do
+		want="${order[$i]}"
+		slot=$(tmux list-panes -t "$win" -F '#{pane_top}|#{pane_id}|#{pane_title}' \
+			| grep -v '|claude$' | sort -n -t'|' -k1,1 | awk -F'|' -v n="$i" 'NR==n+1{print $2}')
+		want_id=$(tmux list-panes -t "$win" -F '#{pane_id}|#{pane_title}' \
+			| awk -F'|' -v t="$want" 'index($2,t)==1{print $1; exit}')
+		[ -n "$slot" ] && [ -n "$want_id" ] && [ "$slot" != "$want_id" ] && tmux swap-pane -s "$want_id" -t "$slot"
+	done
+}
+
 command -v claude >/dev/null || { say "ERROR: claude CLI not found on PATH"; exit 1; }
 command -v tmux   >/dev/null || { say "ERROR: tmux not found — this script requires the tmux log view (brew install tmux)"; exit 1; }
 
@@ -88,6 +106,7 @@ if [ -z "$CLAUDE_PANE" ]; then
 	tmux select-pane -t "$CLAUDE_PANE" -T "claude"
 	tmux set-window-option -t "$WINDOW" main-pane-width 70%
 	tmux select-layout -t "$WINDOW" main-vertical
+	reorder_backends "$WINDOW"   # right column top→bottom: doctor, midship, optro, cascade, alerts
 	CLAUDE_PANE_IS_NEW=true
 else
 	say "claude pane already present — reusing it (not re-launching claude)"
