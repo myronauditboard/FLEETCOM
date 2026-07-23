@@ -81,12 +81,14 @@ Then log into AuditBoard at **https://localhost:9002** (`ops@soxhub.com` /
 
 ## Watching logs
 
-`fleetcom-start-all.sh` ends by opening the five log streams — the first run
+`fleetcom start` ends by opening the five log streams — the first run
 asks whether you prefer a **tmux** session (one window, tiled grid) or
 **separate Terminal windows**; the answer persists in `local.conf`
-(`LOGS_VIEW`) and can be switched anytime with `./fleetcom-logs.sh --tmux` /
-`--windows`. Reopen with `./fleetcom-logs.sh`; skip the auto-open with
-`./fleetcom-start-all.sh --no-logs`. The streams:
+(`LOGS_VIEW`) and can be switched anytime with `fleetcom logs --tmux` /
+`--windows`. To pick the view for a single run without changing the saved
+default, pass `--tmux` / `--windows` straight to `fleetcom start` (or
+`fleetcom restart`). Reopen with `fleetcom logs`; skip the auto-open with
+`fleetcom start --no-logs`. The streams:
 
 | | |
 |---|---|

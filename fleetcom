@@ -75,12 +75,14 @@ render_cmd_help() {
 		;;
 	start)
 		h "NAME";        printf '    fleetcom start - boot the whole stack in dependency order\n\n'
-		h "USAGE";       printf '    fleetcom start [--no-logs]\n\n'
-		h "DESCRIPTION"; printf '    Starts Midship, AuditBoard, and Cascade, skipping anything already\n    running (each port is checked first). Ends by opening the log view.\n\n'
+		h "USAGE";       printf '    fleetcom start [--no-logs] [--tmux | --windows]\n\n'
+		h "DESCRIPTION"; printf '    Starts Midship, AuditBoard, and Cascade, skipping anything already\n    running (each port is checked first). Ends by opening the log view in\n    your saved LOGS_VIEW preference.\n\n'
 		h "OPTIONS"
-		printf '    --no-logs\n        Do not auto-open the log panes after starting.\n\n'
+		printf '    --no-logs\n        Do not auto-open the log panes after starting.\n'
+		printf '    --tmux\n        Open the logs in the tmux grid for this run (not persisted).\n'
+		printf '    --windows\n        Open the logs in separate Terminal windows for this run (not persisted).\n\n'
 		h "EXAMPLES"
-		printf '    fleetcom start\n    fleetcom start --no-logs\n'
+		printf '    fleetcom start\n    fleetcom start --tmux\n    fleetcom start --no-logs\n'
 		;;
 	stop)
 		h "NAME";        printf '    fleetcom stop - stop Cascade and AuditBoard\n\n'
@@ -93,10 +95,14 @@ render_cmd_help() {
 		;;
 	restart)
 		h "NAME";        printf '    fleetcom restart - full bounce of everything, Midship included\n\n'
-		h "USAGE";       printf '    fleetcom restart\n\n'
-		h "DESCRIPTION"; printf '    Runs "stop --midship" then "start": a clean restart of all three\n    stacks.\n\n'
+		h "USAGE";       printf '    fleetcom restart [--no-logs] [--tmux | --windows]\n\n'
+		h "DESCRIPTION"; printf '    Runs "stop --midship" then "start": a clean restart of all three\n    stacks. Any options are forwarded to start.\n\n'
+		h "OPTIONS"
+		printf '    --no-logs\n        Do not auto-open the log panes after restarting.\n'
+		printf '    --tmux\n        Open the logs in the tmux grid for this run (not persisted).\n'
+		printf '    --windows\n        Open the logs in separate Terminal windows for this run (not persisted).\n\n'
 		h "EXAMPLES"
-		printf '    fleetcom restart\n'
+		printf '    fleetcom restart\n    fleetcom restart --windows\n'
 		;;
 	doctor)
 		h "NAME";        printf '    fleetcom doctor - port and health status report\n\n'

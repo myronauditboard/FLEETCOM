@@ -14,8 +14,19 @@ mkdir -p "$LOGS"
 say() { printf '\033[36m[start-all]\033[0m %s\n' "$*"; }
 up()  { lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
+# args (recognized anywhere; unknown ones — e.g. --midship forwarded by
+# fleetcom-start-claude.sh — are ignored, not errors):
+#   --no-logs             don't auto-open the log view at the end
+#   --tmux | --windows    force that log view for this run only (not persisted)
 OPEN_LOGS=1
-[ "${1:-}" = "--no-logs" ] && OPEN_LOGS=0
+LOGS_VIEW_OVERRIDE=""
+for arg in "$@"; do
+	case "$arg" in
+		--no-logs) OPEN_LOGS=0 ;;
+		--tmux)    LOGS_VIEW_OVERRIDE=tmux ;;
+		--windows) LOGS_VIEW_OVERRIDE=windows ;;
+	esac
+done
 
 # nearly everything below needs the docker daemon; launch it if it's down
 if ! docker info >/dev/null 2>&1; then
@@ -197,7 +208,14 @@ say "done — run ./fleetcom-doctor.sh to verify. AB: https://localhost:9002  Ca
 
 if [ "$OPEN_LOGS" = 1 ] && [ -t 0 ]; then
 	say "opening backend logs (./fleetcom-logs.sh reopens later; --no-logs skips this; --tmux/--windows switches view)"
-	"$HERE/fleetcom-logs.sh"
+	# --tmux/--windows here is a one-run override via the LOGS_VIEW env (which
+	# fleetcom-logs.sh honors over local.conf); it does NOT persist. Without it,
+	# fleetcom-logs.sh uses your saved LOGS_VIEW as before.
+	if [ -n "$LOGS_VIEW_OVERRIDE" ]; then
+		LOGS_VIEW="$LOGS_VIEW_OVERRIDE" "$HERE/fleetcom-logs.sh"
+	else
+		"$HERE/fleetcom-logs.sh"
+	fi
 else
 	say "backend logs + alerts: ./fleetcom-logs.sh"
 fi
