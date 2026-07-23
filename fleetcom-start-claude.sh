@@ -34,11 +34,19 @@ reorder_backends() { # window
 	for i in "${!order[@]}"; do
 		want="${order[$i]}"
 		slot=$(tmux list-panes -t "$win" -F '#{pane_top}|#{pane_id}|#{pane_title}' \
-			| grep -v '|claude$' | sort -n -t'|' -k1,1 | awk -F'|' -v n="$i" 'NR==n+1{print $2}')
+			| grep -v '|claude$' | sort -n -t'|' -k1,1 | awk -F'|' -v n="$i" 'NR==n+1{print $2}') || true
 		want_id=$(tmux list-panes -t "$win" -F '#{pane_id}|#{pane_title}' \
-			| awk -F'|' -v t="$want" 'index($2,t)==1{print $1; exit}')
-		[ -n "$slot" ] && [ -n "$want_id" ] && [ "$slot" != "$want_id" ] && tmux swap-pane -s "$want_id" -t "$slot"
+			| awk -F'|' -v t="$want" 'index($2,t)==1{print $1; exit}') || true
+		# Use a real if, NOT `A && B && C && swap`: under the caller's `set -e`, an
+		# `&&` chain whose final test is false makes this the loop's last command
+		# with a non-zero status, so the function returns non-zero and aborts the
+		# whole script right here (which is exactly what happened — reorder ran but
+		# nothing after it did). The if always leaves the function returning 0.
+		if [ -n "$slot" ] && [ -n "$want_id" ] && [ "$slot" != "$want_id" ]; then
+			tmux swap-pane -s "$want_id" -t "$slot"
+		fi
 	done
+	return 0
 }
 
 command -v claude >/dev/null || { say "ERROR: claude CLI not found on PATH"; exit 1; }
