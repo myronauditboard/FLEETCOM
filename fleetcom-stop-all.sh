@@ -9,18 +9,39 @@ DEVENV="$AB_DEVENV_DIR"
 CASCADE="$CASCADE_DIR"
 
 say() { printf '\033[36m[stop-all]\033[0m %s\n' "$*"; }
-kill_port() { # gracefully TERM whatever listens on a port — but NEVER Docker:
-	# on macOS, docker-published ports are held by Docker Desktop's backend
-	# process; signalling it disrupts networking for every container.
-	local pids safe="" p
-	pids=$(lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null) || return 0
-	for p in $pids; do
-		case "$(ps -p "$p" -o comm= 2>/dev/null)" in
-			*[Dd]ocker*) say "port $1 is docker-published — stop the container, not the proxy (skipping pid $p)" ;;
-			*) safe="$safe $p" ;;
-		esac
+kill_port() { # TERM whatever LISTENs on a port, then WAIT until it's actually
+	# released, escalating to KILL — but NEVER Docker: on macOS,
+	# docker-published ports are held by Docker Desktop's backend process, and
+	# signalling it disrupts networking for every container.
+	#
+	# The wait is the fix for the Midship-API-down-after-restart race: uvicorn
+	# --reload shuts down gracefully (up to --timeout-graceful-shutdown 15s), so
+	# 8000 stays bound after `kill` returns. The old code returned immediately,
+	# so the following start-all saw 8000 "already up" and skipped relaunching a
+	# fresh API. Re-checking the port each round (instead of tracking the
+	# original pids) also handles a supervisor that respawns its worker.
+	local pids safe p i
+	for i in $(seq 1 20); do
+		pids=$(lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null) || { [ "$i" -gt 1 ] && say "port $1 released"; return 0; }
+		safe=""
+		for p in $pids; do
+			case "$(ps -p "$p" -o comm= 2>/dev/null)" in
+				*[Dd]ocker*) [ "$i" = 1 ] && say "port $1 is docker-published — stop the container, not the proxy (skipping pid $p)" ;;
+				*) safe="$safe $p" ;;
+			esac
+		done
+		[ -n "${safe// /}" ] || return 0            # free, or only Docker holds it
+		if [ "$i" -lt 8 ]; then
+			[ "$i" = 1 ] && say "stopping port $1 (pid$safe)"
+			kill $safe 2>/dev/null || true          # SIGTERM (graceful) for ~4s
+		else
+			[ "$i" = 8 ] && say "port $1 still draining after ~4s — sending SIGKILL (pid$safe)"
+			kill -9 $safe 2>/dev/null || true
+		fi
+		sleep 0.5
 	done
-	[ -n "${safe// /}" ] && kill $safe 2>/dev/null && say "stopped port $1 (pid$safe)"
+	say "WARNING: port $1 still held after ~10s of TERM/KILL attempts (pid$safe)"
+	return 0
 }
 stop_containers_named() { # docker stop by name filter, quiet when none match
 	local ids
