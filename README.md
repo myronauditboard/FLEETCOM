@@ -46,7 +46,24 @@ handled by `fleetcom-onboard.sh`** — it offers to install the hatchet CLI
 (brew cask), starts the local server (`hatchet server start --dashboard-port
 1337`), and copies the worker token into midship-turbo-broccoli's `.env`.
 
-## Quick start
+## Recommended start
+
+New to this, or setup went sideways? Two commands — and the second one puts
+Claude right next to your logs to help you fix whatever broke:
+
+```bash
+./fleetcom onboard    # one-time, idempotent setup (repos, ports, SSO, deps)
+./fleetcom claude     # full restart + a Claude Code pane beside the live logs
+```
+
+`fleetcom claude` bounces the whole stack clean and opens Claude Code alongside
+the log streams and the live doctor report, with the `fleetcom-doctor`
+self-heal playbook auto-loaded — so if a port won't come up or a service
+crashes on boot, Claude can read the panes and walk you through the fix.
+Requires the `claude` CLI and tmux (`brew install tmux`). Prefer to just boot
+the stack without Claude? Use `./fleetcom start` — see **Commands** below.
+
+## Commands
 
 Everything runs through one command — `./fleetcom <command>` — with built-in
 man-style help (`./fleetcom help`, and `./fleetcom <command> --help`):
