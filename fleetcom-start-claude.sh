@@ -9,10 +9,13 @@
 #   fleetcom-start-claude.sh --no-restart  skip stop/start; just add the claude
 #                                          pane to a running (or freshly built)
 #                                          tmux log session
-# Requires tmux and the claude CLI. This script always uses the tmux log view,
-# regardless of the LOGS_VIEW saved in local.conf — it forces it via an env
-# override (fleetcom-logs.sh honors an explicit LOGS_VIEW env over local.conf),
-# and does NOT persist the choice.
+# Requires the claude CLI. tmux is preferred (Claude tiled beside the log
+# panes); if it's missing you're offered a `brew install tmux`, and declining
+# falls back to a plain restart with the logs in separate Terminal windows and
+# Claude launched in this terminal (reading the log FILES instead of panes).
+# With tmux it always uses the tmux log view regardless of the LOGS_VIEW saved
+# in local.conf — forced via an env override (fleetcom-logs.sh honors an
+# explicit LOGS_VIEW env over local.conf) and NOT persisted.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -50,7 +53,13 @@ reorder_backends() { # window
 }
 
 command -v claude >/dev/null || { say "ERROR: claude CLI not found on PATH"; exit 1; }
-command -v tmux   >/dev/null || { say "ERROR: tmux not found — this script requires the tmux log view (brew install tmux)"; exit 1; }
+# tmux gives the Claude-beside-logs layout (Claude in one pane, log streams
+# tiled beside it). If it's missing, ensure_tmux (paths.sh) offers to install
+# it; if that's declined or unavailable we fall back below to a plain restart
+# with the logs in separate Terminal windows and Claude launched in this
+# terminal instead. The claude CLI itself has no fallback — it's required.
+HAVE_TMUX=1
+ensure_tmux "the Claude-beside-logs layout" || HAVE_TMUX=0
 
 # Don't run from inside the log session we're about to tear down: the restart
 # kills the 'fleetcom-logs' tmux session, which would pull the rug out from
@@ -74,6 +83,39 @@ for a in "$@"; do
 done
 FWD_STR=""
 [ ${#FWD[@]} -gt 0 ] && FWD_STR=" ${FWD[*]}"
+
+# --- windows fallback: no tmux, so no "beside the logs" pane ----------------
+# Can't tile Claude next to the logs without tmux, so degrade gracefully: run
+# the restart normally (logs open as separate Terminal windows via start-all
+# --windows), write a log-FILES map (no tmux panes to capture), then launch
+# Claude in THIS terminal pointed at those files. Claude still helps — it just
+# reads files rather than capturing panes.
+if [ "$HAVE_TMUX" = 0 ]; then
+	say "no tmux — restarting with logs in separate Terminal windows, then launching Claude here"
+	if [ "$RESTART" = 1 ]; then
+		"$HERE/fleetcom-stop-all.sh" ${FWD[@]+"${FWD[@]}"}
+		"$HERE/fleetcom-start-all.sh" --windows ${FWD[@]+"${FWD[@]}"}
+	fi
+	{
+		printf '# FLEETCOM log map (generated %s) — no tmux this run\n\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+		printf 'Read these log FILES on demand (do not tail continuously):\n\n'
+		printf -- '- %s/ab-api.log            optro / AB API\n' "$LOGS"
+		printf -- '- %s/midship-api.log       Midship API\n' "$LOGS"
+		printf -- '- %s/midship-frontend.log  Midship frontend\n' "$LOGS"
+		printf -- '- %s/ab-client.log         AB client (Caddy/login/client turbo group)\n' "$LOGS"
+		printf -- '- %s/cascade-client.log    Cascade client\n' "$LOGS"
+		printf '\nCascade backend has no log file — read it with:\n'
+		printf '  cd %s && docker compose -f docker-compose.yml -f docker-compose-build.yml -f docker-compose.override.yml logs --tail 200 web ws c3 c3manager\n' "$CASCADE_DIR"
+		printf '\nHealth report: %s/fleetcom-doctor.sh\n' "$HERE"
+	} > "$MAP"
+	say "log map -> $MAP"
+	CLAUDE_PROMPT="Read $MAP for where the FLEETCOM logs live (no tmux this run — read the log files on demand instead of tailing continuously)."
+	if [ -t 0 ]; then
+		cd "$HERE" && exec claude "$CLAUDE_PROMPT"
+	fi
+	say "restart done — no TTY to launch Claude; run 'claude' in $HERE (see $MAP)"
+	exit 0
+fi
 
 # Attach-first: build the tmux log session (+ claude pane) BEFORE the restart,
 # then run the restart INSIDE the claude pane. The panes come up immediately and

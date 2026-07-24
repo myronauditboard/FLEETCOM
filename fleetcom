@@ -130,7 +130,7 @@ render_cmd_help() {
 		printf '    --midship\n        Also stop/restart Midship during the bounce.\n'
 		printf '    --no-restart\n        Skip the stop/start; just add the Claude pane to a running session.\n\n'
 		h "NOTES"
-		printf '    Requires the claude CLI and tmux. Run it from a separate terminal\n    window, not from inside the log session (the restart tears that down).\n\n'
+		printf '    Requires the claude CLI. tmux is preferred (Claude tiled beside the\n    logs); if it is missing you are offered a "brew install tmux", and\n    declining falls back to separate Terminal windows with Claude in this\n    terminal. Run it from a separate terminal window, not from inside the\n    log session (the restart tears that down).\n\n'
 		h "EXAMPLES"
 		printf '    fleetcom claude\n    fleetcom claude --no-restart\n'
 		;;

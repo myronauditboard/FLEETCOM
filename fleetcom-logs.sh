@@ -88,9 +88,12 @@ if [ -z "$MODE" ]; then
 	fi
 fi
 
-# tmux view without tmux installed -> fall back to windows
-if [ "$MODE" = "tmux" ] && ! command -v tmux >/dev/null; then
-	say "tmux not installed — using separate Terminal windows instead (brew install tmux for the 2x2 grid)"
+# tmux view without tmux installed -> offer to install it, else fall back to
+# windows. ensure_tmux (paths.sh) does the prompt/install; a non-zero return
+# (declined / no brew / no TTY) means "use windows". This one spot also covers
+# `fleetcom start --tmux` / `restart --tmux`, which reach here via LOGS_VIEW=tmux.
+if [ "$MODE" = "tmux" ] && ! ensure_tmux "the tmux log grid"; then
+	say "using separate Terminal windows instead (brew install tmux for the 2x2 grid)"
 	MODE=windows
 fi
 

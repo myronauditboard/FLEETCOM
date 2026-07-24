@@ -122,8 +122,9 @@ reattaches, `./fleetcom-logs.sh --kill` closes the panes; mouse scrolling is
 enabled; `fleetcom-stop-all.sh` closes the session automatically. Windows
 mode: each stream opens as an Apple Terminal window (generated
 `logs/win-*.command` files — double-click to re-open one); closing a window
-stops its tail, and windows mode is also the automatic fallback when tmux
-isn't installed. The client logs (`ab-client.log`, `midship-frontend.log`,
+stops its tail. Windows mode is also the fallback when tmux isn't installed —
+asking for a tmux view (`--tmux`, or `fleetcom claude`) first offers to
+`brew install tmux`, and only falls back to windows if you decline. The client logs (`ab-client.log`, `midship-frontend.log`,
 `cascade-client.log`) also live in `FLEETCOM/logs/` for manual tailing.
 Ctrl-C in any pane stops that stream and drops you into a shell already `cd`'d
 into that stack's repo (optro-api → auditboard-backend, midship-api →
@@ -141,9 +142,13 @@ launches Claude pointed at it, so Claude reads log output **on demand** with
 context). Pair it with the `fleetcom-doctor` skill — that Claude session, run
 inside this repo, auto-loads the skill's diagnose-and-self-heal playbook.
 
-- Requires the **`claude` CLI** and **tmux** on `PATH`.
-- Always uses the tmux log view for this run (it needs a pane for Claude);
-  your saved `LOGS_VIEW` in `local.conf` is left untouched.
+- Requires the **`claude` CLI** on `PATH`. **tmux** is preferred (it's what
+  tiles Claude beside the panes); if it's missing you're offered a
+  `brew install tmux`, and declining falls back to a plain restart with the
+  logs in **separate Terminal windows** and Claude launched in the current
+  terminal (reading the log files on demand instead of tmux panes).
+- With tmux, always uses the tmux log view for this run (it needs a pane for
+  Claude); your saved `LOGS_VIEW` in `local.conf` is left untouched.
 - `--midship` also stops/restarts Midship (forwarded to stop/start-all).
 - `--no-restart` skips the stop/start and just adds the Claude pane to a
   running (or freshly built) log session — use it when the stack is already up.
